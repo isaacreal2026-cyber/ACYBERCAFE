@@ -9,12 +9,60 @@ import YouTube from "youtube-sr";
 import * as cheerio from "cheerio";
 import { GoogleGenAI } from "@google/genai";
 import Groq from "groq-sdk";
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { promisify } from "util";
 import agentRouter from "./src/server/agent";
 import pdfAiRouter from "./src/server/pdf-ai";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+function isSafeUrl(urlStr: any): boolean {
+  if (!urlStr || typeof urlStr !== "string") {
+    return false;
+  }
+  try {
+    const parsed = new URL(urlStr);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+    const hostname = parsed.hostname.toLowerCase();
+    // Block localhost, loopback, private IP ranges, link-local, and metadata
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0" ||
+      hostname === "169.254.169.254" ||
+      hostname.startsWith("127.") ||
+      hostname.startsWith("10.") ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("172.16.") ||
+      hostname.startsWith("172.17.") ||
+      hostname.startsWith("172.18.") ||
+      hostname.startsWith("172.19.") ||
+      hostname.startsWith("172.20.") ||
+      hostname.startsWith("172.21.") ||
+      hostname.startsWith("172.22.") ||
+      hostname.startsWith("172.23.") ||
+      hostname.startsWith("172.24.") ||
+      hostname.startsWith("172.25.") ||
+      hostname.startsWith("172.26.") ||
+      hostname.startsWith("172.27.") ||
+      hostname.startsWith("172.28.") ||
+      hostname.startsWith("172.29.") ||
+      hostname.startsWith("172.30.") ||
+      hostname.startsWith("172.31.")
+    ) {
+      return false;
+    }
+
+    // Strict URL validation regex to prevent shell/command injection or metadata access characters
+    const SAFE_URL_REGEX = /^https?:\/\/[a-zA-Z0-9_.-]+(?::\d+)?(?:\/[a-zA-Z0-9_\/%.?=&+~#-]*)*$/;
+    return SAFE_URL_REGEX.test(urlStr);
+  } catch (e) {
+    return false;
+  }
+}
 
 // --- Anti-Detection / Scraping Modules (User Request Alignment) ---
 const USER_AGENTS = [
@@ -290,12 +338,14 @@ async function startServer() {
       return res.status(400).json({ error: "Missing query" });
     }
 
+    const sanitizedQuery = query.replace(/[`$\\();&|<>*?]/g, "");
+
     // 1. Primary Attempt: Fast/Native local yt-dlp search
     try {
       console.log(
-        `[YouTube Scraper Search] Primary attempt using native local yt-dlp: ${query}`,
+        `[YouTube Scraper Search] Primary attempt using native local yt-dlp: ${sanitizedQuery}`,
       );
-      const searchResults = await searchViaLocalYtdlp(query, 15);
+      const searchResults = await searchViaLocalYtdlp(sanitizedQuery, 15);
       if (searchResults && searchResults.length > 0) {
         const formatted = searchResults.map((video: any) => {
           const videoId = video.id;
@@ -325,10 +375,10 @@ async function startServer() {
     // 2. Secondary Attempt: youtube-sr scraper
     try {
       console.log(
-        `[YouTube Scraper Search] Secondary attempt using youtube-sr: ${query}`,
+        `[YouTube Scraper Search] Secondary attempt using youtube-sr: ${sanitizedQuery}`,
       );
       const yt = (YouTube as any).default || YouTube;
-      const searchResults = await yt.search(query, {
+      const searchResults = await yt.search(sanitizedQuery, {
         limit: 15,
         type: "video",
         requestOptions: {
@@ -385,7 +435,7 @@ async function startServer() {
             console.log(
               `[YouTube Scraper Search Fallback] Trying instance: ${instance}/search...`,
             );
-            const url = `${instance}/search?q=${encodeURIComponent(query)}&filter=videos`;
+            const url = `${instance}/search?q=${encodeURIComponent(sanitizedQuery)}&filter=videos`;
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 1500);
@@ -447,7 +497,7 @@ async function startServer() {
             console.log(
               `[YouTube Scraper Search Fallback] Trying Invidious instance: ${instance}/api/v1/search...`,
             );
-            const url = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`;
+            const url = `${instance}/api/v1/search?q=${encodeURIComponent(sanitizedQuery)}&type=video`;
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 1500);
@@ -1266,6 +1316,12 @@ async function startServer() {
     res: express.Response,
     next: express.NextFunction,
   ) => {
+    const expectedKey = process.env.VITE_MEDIA_PROXY_API_KEY || 'media_secret_secure_key_2026';
+    const clientKey = req.headers['x-api-key'] || req.query['api_key'];
+    if (!clientKey || clientKey !== expectedKey) {
+      console.warn(`[Auth Warn] Unauthorized API request.`);
+      return res.status(401).json({ error: "Unauthorized: Invalid or missing API Key" });
+    }
     return next();
   };
 
@@ -1299,6 +1355,9 @@ async function startServer() {
         return res
           .status(400)
           .json({ error: "Missing 'url' parameter in request body." });
+      }
+      if (!isSafeUrl(url)) {
+        return res.status(400).json({ error: "Invalid or unsafe URL." });
       }
 
       const youtubeId = getYouTubeID(url);
@@ -1881,6 +1940,9 @@ async function startServer() {
     if (!url || typeof url !== "string") {
       return res.status(400).send("Missing url parameter");
     }
+    if (!isSafeUrl(url)) {
+      return res.status(400).send("Invalid or unsafe URL.");
+    }
 
     if (res.socket) {
       res.socket.setNoDelay(true);
@@ -2177,6 +2239,9 @@ async function startServer() {
           .status(400)
           .json({ error: "Missing 'url' parameter in request body." });
       }
+      if (!isSafeUrl(url)) {
+        return res.status(400).json({ error: "Invalid or unsafe URL." });
+      }
       console.log(
         `[ytdl-core Native] Fetching info for url: ${url} using @distube/ytdl-core`,
       );
@@ -2306,6 +2371,10 @@ async function startServer() {
   // API proxy endpoint for yt-dlp info queries on port 5000 inside container
   app.post("/api/yt-dlp/info", validateApiKey, async (req, res) => {
     try {
+      const videoUrl = req.body?.url;
+      if (videoUrl && !isSafeUrl(videoUrl)) {
+        return res.status(400).json({ error: "Invalid or unsafe URL." });
+      }
       console.log(`[yt-dlp Proxy] Forwarding to internal port 5000`);
       const response = await fetch("http://127.0.0.1:5000/api/yt-dlp/info", {
         method: "POST",
@@ -2380,6 +2449,9 @@ async function startServer() {
     const siteUrl = req.query.site_url;
     if (!siteUrl || typeof siteUrl !== "string") {
       return res.status(400).json({ error: "Missing site_url" });
+    }
+    if (!isSafeUrl(siteUrl)) {
+      return res.status(400).json({ error: "Invalid or unsafe URL." });
     }
 
     let browser = null;
@@ -2498,6 +2570,9 @@ async function startServer() {
     if (!pdf_url || typeof pdf_url !== "string") {
       return res.status(400).json({ error: "Missing pdf_url" });
     }
+    if (!isSafeUrl(pdf_url)) {
+      return res.status(400).json({ error: "Invalid or unsafe URL." });
+    }
 
     // Check Cache
     const cached = pdfExtractionCache.get(pdf_url);
@@ -2541,7 +2616,7 @@ async function startServer() {
   });
 
   // Git Client API
-  app.post("/api/git", express.json(), async (req, res) => {
+  app.post("/api/git", validateApiKey, express.json(), async (req, res) => {
     try {
       const { command, args } = req.body;
       if (!command) {
@@ -2561,10 +2636,7 @@ async function startServer() {
         return res.status(400).json({ error: "Git command not allowed" });
       }
 
-      let gitArgs = "";
-      if (args && Array.isArray(args)) {
-        gitArgs = args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(" ");
-      }
+      const commandArgs = args && Array.isArray(args) ? args : [];
 
       // Check if git is initialized
       const isGitInitialized = fs.existsSync(path.join(process.cwd(), ".git"));
@@ -2572,7 +2644,7 @@ async function startServer() {
         return res.status(400).json({ error: "Git repository not initialized" });
       }
 
-      const { stdout, stderr } = await execAsync(`git ${command} ${gitArgs}`);
+      const { stdout, stderr } = await execFileAsync("git", [command, ...commandArgs], { timeout: 10000 });
 
       return res.json({ status: "success", stdout, stderr });
     } catch (error: any) {
