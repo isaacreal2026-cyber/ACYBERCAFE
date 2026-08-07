@@ -1,0 +1,561 @@
+# CYBER CAFE MANAGEMENT PLATFORM 2.0 - ADVANCED UPGRADE INSTRUCTIONS
+
+## CORE RULE
+
+DO NOT REMOVE, REPLACE, BREAK, OR ALTER ANY EXISTING FEATURE, WORKFLOW, DATABASE STRUCTURE, USER PERMISSIONS, BUSINESS LOGIC, OR CUSTOMER OPERATIONS.
+
+Only perform:
+
+* Integration
+* Enhancement
+* Optimization
+* Automation
+* UI/UX modernization
+* Feature expansion
+* Performance improvements
+
+All existing functions must continue working exactly as before.
+
+---
+
+# SYSTEM VISION
+
+Transform the current cyber cafe website into a modern Cyber Operations Platform used by:
+
+* Cyber attendants
+* Cyber managers
+* Business owners
+* Walk-in customers
+* Government service agents
+* Document processing agents
+
+The platform must become a centralized workstation capable of handling daily customer requests with minimal manual effort.
+
+The design should resemble a professional cyber cafe control center rather than a generic website.
+
+---
+
+# PRIMARY USERS
+
+## Cyber Attendant
+
+Handles:
+
+* Printing
+* Scanning
+* KRA services
+* eCitizen services
+* NTSA services
+* CV creation
+* Research assistance
+* Passport applications
+* Document editing
+* Photo services
+
+## Manager
+
+Handles:
+
+* Revenue tracking
+* Staff monitoring
+* Customer analytics
+* Service statistics
+* Inventory
+
+## Customer
+
+Can:
+
+* Submit requests
+* Upload files
+* Track service status
+* Receive documents
+* Pay
+* Download outputs
+
+---
+
+# MODERN UI/UX REDESIGN
+
+Redesign interface completely while preserving functionality.
+
+Requirements:
+
+## Dashboard Layout
+
+Left Sidebar
+
+* Dashboard
+* Customers
+* Services
+* Government Services
+* Documents
+* Printing Center
+* Scanner Center
+* Design Studio
+* AI Assistant
+* Finance
+* Reports
+* Staff
+* Notifications
+* Settings
+
+Top Navigation
+
+* Search Everything
+* Quick Service Launcher
+* Notifications
+* Customer Queue Counter
+* User Profile
+
+---
+
+# CYBER CONTROL CENTER
+
+Create homepage resembling a real cyber operation center.
+
+Display:
+
+* Customers Waiting
+* Active Jobs
+* Printing Queue
+* Scanning Queue
+* Government Applications
+* Today's Revenue
+* Daily Statistics
+* Urgent Tasks
+
+Real-time updates.
+
+---
+
+# CUSTOMER MANAGEMENT SYSTEM
+
+Customer Profiles
+
+Store:
+
+* Full Name
+* Phone
+* Email
+* National ID
+* Service History
+* Uploaded Documents
+* Payment History
+* Notes
+
+Customer Timeline
+
+Shows:
+
+* Previous services
+* Documents generated
+* Applications submitted
+* Payments made
+
+---
+
+# GOVERNMENT SERVICES HUB
+
+Create dedicated Government Services Center.
+
+Integrate support for:
+
+## KRA Services
+
+Using GavaConnect APIs
+
+Features:
+
+* PIN Verification
+* Nil Returns Filing
+* TCC Verification
+* Tax Status Lookup
+
+Workflow:
+
+Customer ID →
+Verify →
+Generate Result →
+Store Activity Log
+
+---
+
+## eCitizen Assistant
+
+Provide:
+
+* Service guides
+* Status checking
+* Credential pre-verification
+* Application preparation
+
+Before customer enters eCitizen:
+
+* Validate requirements
+* Verify uploaded documents
+* Generate checklist
+
+---
+
+## NTSA Assistant
+
+Provide:
+
+* License status checks
+* Vehicle status checks
+* Application preparation
+* Smart eligibility verification
+
+---
+
+# AI SERVICE CENTER
+
+Create AI-powered tools section.
+
+---
+
+## CV Builder
+
+Powered by:
+
+Google Gemini API
+
+Features:
+
+* Professional CV Generation
+* ATS Optimization
+* Multiple Templates
+* Export PDF
+* Export Word
+
+User enters details.
+
+System generates:
+
+* Complete CV
+* Cover Letter
+* Professional Profile
+
+---
+
+## Essay Generator
+
+Powered by:
+
+Google Gemini API
+
+Features:
+
+* Essay Drafting
+* Research Assistance
+* Grammar Correction
+* Citation Formatting
+* Assignment Structuring
+
+---
+
+## Letter Generator
+
+Generate:
+
+* Application Letters
+* Recommendation Letters
+* Complaint Letters
+* Official Requests
+
+---
+
+## Document Rewriter
+
+Features:
+
+* Improve Writing
+* Grammar Fixing
+* Translation
+* Summarization
+
+---
+
+# DESIGN STUDIO
+
+Integrate Polotno Studio.
+
+Purpose:
+
+Allow customers to create:
+
+* Posters
+* Flyers
+* Funeral Programs
+* Invitations
+* Certificates
+* Business Cards
+* Banners
+
+Features:
+
+* Templates
+* Drag and Drop
+* Image Upload
+* PDF Export
+* Print Ready Output
+
+---
+
+# DOCUMENT AUTOMATION CENTER
+
+Backend:
+
+Python-docx
+
+Generate automatically:
+
+* CVs
+* Reports
+* Business Documents
+* Contracts
+* Letters
+
+Export:
+
+* DOCX
+* PDF
+
+---
+
+# BOOKKEEPING AUTOMATION
+
+Backend:
+
+OpenPyXL
+
+Generate:
+
+* Financial Reports
+* Expense Sheets
+* Sales Records
+* Inventory Sheets
+* Payroll Records
+
+---
+
+# PRINTING CENTER
+
+Professional Print Queue Management
+
+Features:
+
+* File Upload
+* Preview
+* Page Count Detection
+* Cost Estimation
+* Print Queue
+* Printer Selection
+* Print History
+
+Support:
+
+* PDF
+* DOCX
+* XLSX
+* Images
+
+---
+
+# LOCAL PRINTING AUTOMATION
+
+Implement:
+
+Windows:
+
+* win32print
+
+Linux:
+
+* CUPS
+
+Workflow:
+
+Upload →
+Queue →
+Print →
+Track Status
+
+No paid cloud printing services.
+
+---
+
+# SCANNING CENTER
+
+Integrate:
+
+* SANE
+* Dynamic Web TWAIN
+
+Features:
+
+* Scan Preview
+* Multi-page Scan
+* OCR
+* PDF Generation
+* Image Enhancement
+
+---
+
+# CUSTOMER SELF-SERVICE PORTAL
+
+Customers can:
+
+* Upload Files
+* Request Services
+* Track Progress
+* Receive Outputs
+* Download Documents
+* View Service History
+
+---
+
+# SMART SERVICE REQUEST SYSTEM
+
+One-click service ordering.
+
+Examples:
+
+* CV Creation
+* KRA Filing
+* Printing
+* Passport Photo
+* Scanning
+* Design Request
+* Typing Service
+
+Each request receives:
+
+* Ticket Number
+* Queue Position
+* Progress Tracking
+
+---
+
+# SERVICE QUEUE MANAGEMENT
+
+Real-time queue.
+
+Status:
+
+* Waiting
+* Processing
+* Review
+* Completed
+* Delivered
+
+---
+
+# DIGITAL FILE VAULT
+
+Store:
+
+* Customer Documents
+* Generated Files
+* Scanned Copies
+* Receipts
+
+Advanced search required.
+
+---
+
+# FINANCIAL MANAGEMENT
+
+Track:
+
+* Revenue
+* Daily Sales
+* Service Income
+* Staff Performance
+
+Dashboard Analytics:
+
+* Most Requested Service
+* Peak Hours
+* Revenue Trends
+* Customer Growth
+
+---
+
+# NOTIFICATION SYSTEM
+
+Real-time alerts.
+
+Methods:
+
+* In-App
+* Email
+
+Notify:
+
+* Job Completed
+* Print Ready
+* Document Ready
+* Service Updates
+
+---
+
+# STAFF MANAGEMENT
+
+Features:
+
+* Staff Accounts
+* Roles
+* Permissions
+* Activity Logs
+* Performance Reports
+
+---
+
+# SECURITY
+
+Implement:
+
+* Audit Logs
+* Activity Tracking
+* File Encryption
+* Backup System
+* Access Control
+* Session Management
+
+---
+
+# PERFORMANCE REQUIREMENTS
+
+* Fast Loading
+* Mobile Friendly
+* Tablet Friendly
+* Desktop Optimized
+* Offline Tolerant
+* PWA Support
+
+---
+
+# AI INTEGRATIONS
+
+Priority Free Services
+
+1. Google Gemini API (Free Tier)
+2. Hugging Face Inference API
+3. Polotno Studio
+4. Python-docx
+5. OpenPyXL
+6. GavaConnect APIs
+7. CUPS
+8. win32print
+9. SANE
+10. Dynamic Web TWAIN
+
+Always prioritize free-tier and open-source solutions before recommending paid alternatives.
+
+---
+
+# FINAL OBJECTIVE
+
+Convert the website into a complete Cyber Cafe Operating System that enables one attendant to serve many customers efficiently, reduces manual work, automates repetitive tasks, improves document processing speed, modernizes user experience, and creates a professional digital service center while preserving all existing functionality.

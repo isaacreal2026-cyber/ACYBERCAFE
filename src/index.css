@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+:root {
+  --color-brand-primary: #8A2BE2;
+  --color-brand-accent: #00E5FF;
+  --color-surface-bg: #F8F9FA;
+  --color-surface-card: #FFFFFF;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4B5563;
+}
+
+[data-theme='dark'] {
+  --color-brand-primary: #A855F7;
+  --color-brand-accent: #22D3EE;
+  --color-surface-bg: #111827;
+  --color-surface-card: #1F2937;
+  --color-text-primary: #F9FAFB;
+  --color-text-secondary: #9CA3AF;
+}
+
+@theme {
+  --font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Roboto", sans-serif;
+  
+  --color-brand-primary: var(--color-brand-primary);
+  --color-brand-accent: var(--color-brand-accent);
+  --color-surface-bg: var(--color-surface-bg);
+  --color-surface-card: var(--color-surface-card);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, opacity, transform, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Override for animations */
+.animate-spin, .animate-bounce, .animate-pulse {
+  transition: none;
+}
+
+button, .clickable {
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s, background-color 0.2s, color 0.2s;
+  cursor: pointer;
+}
+
+button:active, .clickable:active {
+  transform: scale(0.95);
+}
+
+button:hover {
+  box-shadow: 0 4px 12px rgba(138, 43, 226, 0.15);
+}
+
+a {
+  text-decoration: underline;
+  text-decoration-color: var(--color-brand-primary);
+  text-underline-offset: 4px;
+  transition: all 0.2s;
+}
+
+a:hover {
+  color: var(--color-brand-primary);
+  text-decoration-thickness: 2px;
+}
+
+/* Prose styles for markdown */
+.prose-invert code {
+  color: var(--color-brand-primary);
+}
+
+/* Selection */
+::selection {
+  background: rgba(138, 43, 226, 0.2);
+  color: #111827;
+}
+
+body {
+  background-color: var(--color-surface-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}

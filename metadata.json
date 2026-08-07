@@ -1,0 +1,6 @@
+{
+  "name": "Multi-Service Centre & AI Workspace",
+  "description": "An integrated digital store and generative workspace including document management, printing, scanner, government services, finance/reports, and advanced AI suites with video and media streaming capabilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
