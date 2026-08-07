@@ -4,11 +4,6 @@ import dns from "dns";
 import https from "https";
 import http from "http";
 import fs from "fs";
-import ytdl from "@distube/ytdl-core";
-import YouTube from "youtube-sr";
-import * as cheerio from "cheerio";
-import { GoogleGenAI } from "@google/genai";
-import Groq from "groq-sdk";
 import { exec } from "child_process";
 import { promisify } from "util";
 import agentRouter from "./src/server/agent";
@@ -327,6 +322,8 @@ async function startServer() {
       console.log(
         `[YouTube Scraper Search] Secondary attempt using youtube-sr: ${query}`,
       );
+      const YouTubeModule = await import("youtube-sr");
+      const YouTube = YouTubeModule.default || YouTubeModule;
       const yt = (YouTube as any).default || YouTube;
       const searchResults = await yt.search(query, {
         limit: 15,
@@ -602,6 +599,16 @@ async function startServer() {
       expiresAt: number;
     }
   >();
+
+  // Periodically clean up expired extraction cache entries to prevent memory leaks
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of extractionCache.entries()) {
+      if (value.expiresAt < now) {
+        extractionCache.delete(key);
+      }
+    }
+  }, 30 * 60 * 1000); // run every 30 minutes
 
   // Simple in-memory proxy pool for yt-dlp (populated via env, or default fallbacks)
   const proxyPoolStr = process.env.PROXY_POOL || "";
@@ -1482,6 +1489,7 @@ async function startServer() {
         console.log(
           `[Unified Media Extractor] Fallback: @distube/ytdl-core for URL: ${url}`,
         );
+        const ytdl = (await import("@distube/ytdl-core")).default;
         const data = await ytdl.getInfo(url);
         if (
           data &&
@@ -2130,6 +2138,7 @@ async function startServer() {
         console.log(
           `[Media Stream Proxy] All public nodes exhausted. Running last-resort native @distube/ytdl-core (mode: ${isVideo ? "video" : "audio"})...`,
         );
+        const ytdl = (await import("@distube/ytdl-core")).default;
         const stream = ytdl(url, {
           filter: isVideo ? "videoandaudio" : "audioonly",
           quality: isVideo ? "highestvideo" : "highestaudio",
@@ -2180,6 +2189,7 @@ async function startServer() {
       console.log(
         `[ytdl-core Native] Fetching info for url: ${url} using @distube/ytdl-core`,
       );
+      const ytdl = (await import("@distube/ytdl-core")).default;
       const info = await ytdl.getInfo(url);
 
       // Process formats to include local proxied streaming links to ensure compatibility
@@ -2411,6 +2421,7 @@ async function startServer() {
       await page.goto(siteUrl, { waitUntil: "networkidle2", timeout: 30000 });
 
       const html = await page.content();
+      const cheerio = await import("cheerio");
       const $ = cheerio.load(html);
       const pdfResults: any[] = [];
       const keywords = [
@@ -2613,6 +2624,7 @@ async function startServer() {
             .status(500)
             .json({ error: "GEMINI_API_KEY not configured" });
 
+        const { GoogleGenAI } = await import("@google/genai");
         const ai = new GoogleGenAI({ apiKey });
         const response = await ai.models.generateContent({
           model: model || "gemini-2.5-flash",
@@ -2624,7 +2636,9 @@ async function startServer() {
         if (!apiKey)
           return res.status(500).json({ error: "GROQ_API_KEY not configured" });
 
-        const groq = new Groq({ apiKey });
+        const GroqSDK = (await import("groq-sdk")).default || await import("groq-sdk");
+        const GroqClass = (GroqSDK as any).default || GroqSDK;
+        const groq = new GroqClass({ apiKey });
         const completion = await groq.chat.completions.create({
           messages: [{ role: "user", content: prompt }],
           model: model || "llama-3.3-70b-versatile",
