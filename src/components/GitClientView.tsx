@@ -18,9 +18,13 @@ interface GitOutput {
 }
 
 const fetchGitData = async (command: string, args: string[] = []) => {
+  const apiKey = (import.meta as any).env.VITE_MEDIA_PROXY_API_KEY || 'media_secret_secure_key_2026';
   const response = await fetch("/api/git", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": apiKey
+    },
     body: JSON.stringify({ command, args }),
   });
   const data = await response.json();
