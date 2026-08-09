@@ -2,8 +2,24 @@ import  { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Plus, Link as LinkIcon, FileText, Image as ImageIcon, Trash2, Tag, ExternalLink } from 'lucide-react';
 
-export default function AssetsView() {
-  const { assets, addAsset, deleteAsset } = useAppStore();
+import { SavedAsset } from '../types';
+
+interface AssetsViewProps {
+  assets?: SavedAsset[];
+  addAsset?: (asset: Omit<SavedAsset, 'id' | 'createdAt'>) => void;
+  deleteAsset?: (id: string) => void;
+}
+
+export default function AssetsView({
+  assets: propsAssets,
+  addAsset: propsAddAsset,
+  deleteAsset: propsDeleteAsset,
+}: AssetsViewProps = {}) {
+  const store = useAppStore();
+  const assets = propsAssets !== undefined ? propsAssets : store.assets;
+  const addAsset = propsAddAsset !== undefined ? propsAddAsset : store.addAsset;
+  const deleteAsset = propsDeleteAsset !== undefined ? propsDeleteAsset : store.deleteAsset;
+
   const [isAdding, setIsAdding] = useState(false);
   const [assetType, setAssetType] = useState<'document' | 'image' | 'link'>('link');
   const [assetName, setAssetName] = useState('');
