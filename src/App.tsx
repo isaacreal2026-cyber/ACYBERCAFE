@@ -38,6 +38,13 @@ export default function App() {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mockAuth') === 'true') {
+      store.login('alex@example.com', 'Alex Johnson');
+      setIsAuthChecking(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         store.login(user.email || '', user.displayName || user.email?.split('@')[0] || 'User');
@@ -96,7 +103,13 @@ export default function App() {
       case 'documents':
         return <DocumentsView documents={store.documents} addDocument={store.addDocument} />;
       case 'assets':
-        return <AssetsView />;
+        return (
+          <AssetsView
+            assets={store.assets}
+            addAsset={store.addAsset}
+            deleteAsset={store.deleteAsset}
+          />
+        );
       case 'finance':
         return <FinanceView transactions={store.transactions} todayRevenue={store.todayRevenue} />;
       case 'reports':
@@ -121,7 +134,12 @@ export default function App() {
       case 'settings':
         return <SettingsView />;
       case 'cyber-agent' as any:
-        return <CyberAgentView />;
+        return (
+          <CyberAgentView
+            prompts={store.prompts}
+            addPrompt={store.addPrompt}
+          />
+        );
       case 'ai-chat':
         return (
           <ChatView

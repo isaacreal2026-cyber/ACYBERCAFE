@@ -11,8 +11,21 @@ interface ChatMessage {
   fileName?: string;
 }
 
-export default function CyberAgentView() {
-  const { prompts, addPrompt } = useAppStore();
+import { PromptItem } from '../types';
+
+interface CyberAgentViewProps {
+  prompts?: PromptItem[];
+  addPrompt?: (prompt: Omit<PromptItem, 'id'>) => void;
+}
+
+export default function CyberAgentView({
+  prompts: propsPrompts,
+  addPrompt: propsAddPrompt,
+}: CyberAgentViewProps = {}) {
+  const store = useAppStore();
+  const prompts = propsPrompts !== undefined ? propsPrompts : store.prompts;
+  const addPrompt = propsAddPrompt !== undefined ? propsAddPrompt : store.addPrompt;
+
   const [messages, setMessages] = useState<ChatMessage[]>([{
     id: '1',
     role: 'agent',
