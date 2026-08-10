@@ -86,6 +86,7 @@ export function useAppStore() {
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [pendingBoostPrompt, setPendingBoostPrompt] = useState<string | null>(null);
 
   const login = useCallback((email: string, name: string) => {
     // In a real app, this would validate credentials
@@ -276,6 +277,7 @@ export function useAppStore() {
     selectedModel, setSelectedModel,
     isLoading,
     isAuthenticated, login, logout,
+    pendingBoostPrompt, setPendingBoostPrompt,
     customers, addCustomer,
     serviceTickets, addServiceTicket, updateTicketStatus,
     printJobs, addPrintJob,

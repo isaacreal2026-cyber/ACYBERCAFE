@@ -2,12 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Send, Bot, User, Copy, ThumbsUp, ThumbsDown, RotateCcw,
   Paperclip, Mic, StopCircle, ChevronDown, Sparkles, Zap,
-  CheckCircle2, Globe, BookOpen, Code2
+  CheckCircle2, Globe, BookOpen, Code2, Terminal
 } from 'lucide-react';
 import { Conversation, AIModel } from '../types';
 import { CHAT_MODELS } from '../data/models';
 import { cn } from '../utils/cn';
 import ReactMarkdown from 'react-markdown';
+import { useAppStore } from '../store/useAppStore';
+import { parseCavemanClipboard, generateCavemanTaskPrompt } from '../lib/caveman';
 
 interface ChatViewProps {
   conversation: Conversation | undefined;
@@ -36,6 +38,24 @@ export default function ChatView({ conversation, onSendMessage, isLoading, selec
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation?.messages]);
+
+  const { pendingBoostPrompt, setPendingBoostPrompt } = useAppStore();
+
+  const handleCavemanClipboardBoost = async () => {
+    try {
+      const clipText = await navigator.clipboard.readText();
+      if (clipText) {
+        const entities = parseCavemanClipboard(clipText);
+        setInput(generateCavemanTaskPrompt(entities));
+        return;
+      }
+    } catch (e) {
+      console.warn('Clipboard read error:', e);
+    }
+    const sample = 'SMS from KRA: PIN A001234567X for JOHN KAMAU MWANGI ID: 12345678. Nil returns due. Ref QKH9281X23 KES 200 paid.';
+    const entities = parseCavemanClipboard(sample);
+    setInput(generateCavemanTaskPrompt(entities));
+  };
 
   const handleSend = () => {
     if (!input.trim() || isLoading) return;
@@ -289,6 +309,37 @@ export default function ChatView({ conversation, onSendMessage, isLoading, selec
 
       {/* Input area */}
       <div className="flex-shrink-0 px-6 py-4 border-t border-gray-100">
+        {pendingBoostPrompt && (
+          <div className="mb-3 p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                <Terminal className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-emerald-400 truncate">Caveman Task Boost Active — Clipboard Entities Ready</div>
+                <div className="text-[10px] text-gray-400 truncate">{pendingBoostPrompt.slice(0, 90)}...</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => {
+                  onSendMessage(pendingBoostPrompt, selectedModel);
+                  setPendingBoostPrompt(null);
+                }}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-all shadow-md"
+              >
+                Send Caveman Boost
+              </button>
+              <button
+                onClick={() => setPendingBoostPrompt(null)}
+                className="px-2 py-1 text-gray-400 hover:text-white text-xs"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="relative bg-gray-100 border border-gray-200 rounded-2xl focus-within:border-violet-500/50 transition-all">
           <textarea
             ref={inputRef}
@@ -297,10 +348,19 @@ export default function ChatView({ conversation, onSendMessage, isLoading, selec
             onKeyDown={handleKeyDown}
             placeholder="Message CyberPlus..."
             rows={1}
-            className="w-full bg-transparent text-gray-800 placeholder-gray-400 text-sm px-4 py-3 pr-24 resize-none focus:outline-none min-h-[48px] max-h-40"
+            className="w-full bg-transparent text-gray-800 placeholder-gray-400 text-sm px-4 py-3 pr-32 resize-none focus:outline-none min-h-[48px] max-h-40"
             style={{ lineHeight: '1.5' }}
           />
           <div className="absolute right-3 bottom-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCavemanClipboardBoost}
+              className="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all"
+              title="Caveman Task Boost (Paste Clipboard & Extract PINs/IDs)"
+            >
+              <Terminal className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Caveman Boost</span>
+            </button>
             <button className="p-1.5 text-gray-600 hover:text-gray-600 transition-colors">
               <Paperclip className="w-4 h-4" />
             </button>

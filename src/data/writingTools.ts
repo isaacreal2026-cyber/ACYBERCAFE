@@ -2,6 +2,118 @@ import { WritingTool } from "../types";
 
 export const WRITING_TOOLS: WritingTool[] = [
   {
+    id: "cv-builder",
+    name: "AI CV & Resume Builder",
+    description:
+      "Powered by Gemini: Professional CV Generation, ATS Optimization, Multiple Templates, Export PDF & Word",
+    icon: "👔",
+    placeholder: "Enter customer full name, contact, experience, and education details...",
+    fields: [
+      {
+        id: "fullName",
+        label: "Customer Full Name",
+        type: "text",
+        placeholder: "e.g., John Kamau Mwangi",
+      },
+      {
+        id: "targetRole",
+        label: "Target Job Role",
+        type: "text",
+        placeholder: "e.g., Accountant, Driver, Teacher, IT Specialist",
+      },
+      {
+        id: "experience",
+        label: "Work Experience & Skills",
+        type: "textarea",
+        placeholder: "List past companies, responsibilities, and key skills...",
+      },
+      {
+        id: "education",
+        label: "Education & Qualifications",
+        type: "textarea",
+        placeholder: "Degrees, Diplomas, KCSE, Certifications...",
+      },
+    ],
+  },
+  {
+    id: "essay-generator",
+    name: "Essay & Research Generator",
+    description:
+      "Powered by Gemini: Essay Drafting, Research Assistance, Grammar Correction, Citation Formatting, Assignment Structuring",
+    icon: "🎓",
+    placeholder: "Enter assignment topic, guidelines, and desired structure...",
+    fields: [
+      {
+        id: "topic",
+        label: "Essay Topic / Title",
+        type: "text",
+        placeholder: "e.g., The Impact of E-Governance in East Africa",
+      },
+      {
+        id: "level",
+        label: "Academic Level",
+        type: "select",
+        options: ["High School / KCSE", "Undergraduate", "Postgraduate", "Professional Report"],
+      },
+      {
+        id: "structure",
+        label: "Desired Structure & Citations",
+        type: "textarea",
+        placeholder: "Key points to cover, APA/MLA formatting required...",
+      },
+    ],
+  },
+  {
+    id: "letter-generator",
+    name: "Official Letter Generator",
+    description:
+      "Generate Application Letters, Recommendation Letters, Complaint Letters, Official Requests",
+    icon: "✉️",
+    placeholder: "Describe the recipient and purpose of the letter...",
+    fields: [
+      {
+        id: "letterType",
+        label: "Letter Type",
+        type: "select",
+        options: ["Job Application Letter", "Official Government Request", "Recommendation Letter", "Complaint Letter", "Leave / Explanation Letter"],
+      },
+      {
+        id: "recipient",
+        label: "Recipient Details",
+        type: "text",
+        placeholder: "e.g., The Human Resource Manager, Ministry of Health",
+      },
+      {
+        id: "keyPoints",
+        label: "Key Points to Include",
+        type: "textarea",
+        placeholder: "Summary of qualifications or reason for request...",
+      },
+    ],
+  },
+  {
+    id: "document-rewriter",
+    name: "Document Rewriter & Translator",
+    description:
+      "Improve Writing, Grammar Fixing, Translation (English/Swahili), Summarization",
+    icon: "✍️",
+    placeholder: "Paste the text you want to rewrite, improve, or translate...",
+    fields: [
+      {
+        id: "action",
+        label: "Action",
+        type: "select",
+        options: ["Improve Clarity & Grammar", "Translate English to Swahili", "Translate Swahili to English", "Summarize Document", "Formalize Tone"],
+      },
+      {
+        id: "text",
+        label: "Original Text",
+        type: "textarea",
+        placeholder: "Paste original text here...",
+      },
+    ],
+  },
+  {
     id: "blog-article",
     name: "Blog Article Generator",
     description:

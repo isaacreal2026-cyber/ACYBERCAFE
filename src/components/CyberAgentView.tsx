@@ -1,7 +1,8 @@
 import  { useState, useRef, useEffect } from 'react';
-import { Send, Bot, Paperclip, FileText, File, Download, Image as ImageIcon, Briefcase, FileSignature, Files, ClipboardList, Plus, X } from 'lucide-react';
+import { Send, Bot, Paperclip, FileText, File, Download, Image as ImageIcon, Briefcase, FileSignature, Files, ClipboardList, Plus, X, Terminal } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAppStore } from '../store/useAppStore';
+import { parseCavemanClipboard, generateCavemanTaskPrompt } from '../lib/caveman';
 
 interface ChatMessage {
   id: string;
@@ -12,7 +13,7 @@ interface ChatMessage {
 }
 
 export default function CyberAgentView() {
-  const { prompts, addPrompt } = useAppStore();
+  const { prompts, addPrompt, pendingBoostPrompt, setPendingBoostPrompt } = useAppStore();
   const [messages, setMessages] = useState<ChatMessage[]>([{
     id: '1',
     role: 'agent',
@@ -38,6 +39,22 @@ export default function CyberAgentView() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const handleCavemanClipboardBoost = async () => {
+    try {
+      const clipText = await navigator.clipboard.readText();
+      if (clipText) {
+        const entities = parseCavemanClipboard(clipText);
+        setInput(generateCavemanTaskPrompt(entities));
+        return;
+      }
+    } catch (e) {
+      console.warn('Clipboard read error:', e);
+    }
+    const sample = 'SMS from KRA: PIN A001234567X for JOHN KAMAU MWANGI ID: 12345678. Nil returns due. Ref QKH9281X23 KES 200 paid.';
+    const entities = parseCavemanClipboard(sample);
+    setInput(generateCavemanTaskPrompt(entities));
+  };
 
   const handleSend = async () => {
     if (!input.trim() && !selectedFile) return;
@@ -264,7 +281,48 @@ export default function CyberAgentView() {
               <button onClick={() => setSelectedFile(null)} className="ml-auto text-gray-600 hover:text-white">✕</button>
             </div>
           )}
+
+          {pendingBoostPrompt && (
+            <div className="mb-2 p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                  <Terminal className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-emerald-400 truncate">Caveman Task Boost Active — Clipboard Entities Ready</div>
+                  <div className="text-[10px] text-gray-400 truncate">{pendingBoostPrompt.slice(0, 90)}...</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => {
+                    setInput(pendingBoostPrompt);
+                    setPendingBoostPrompt(null);
+                  }}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-all shadow-md"
+                >
+                  Load into Agent
+                </button>
+                <button
+                  onClick={() => setPendingBoostPrompt(null)}
+                  className="px-2 py-1 text-gray-400 hover:text-white text-xs"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-end gap-2 bg-gray-100 border border-gray-200 rounded-xl p-2 focus-within:border-brand-primary/50 transition-colors">
+            <button
+              type="button"
+              onClick={handleCavemanClipboardBoost}
+              className="p-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded-lg shrink-0 transition-all flex items-center gap-1 text-xs font-semibold"
+              title="Caveman Task Boost (Paste Clipboard & Extract PINs/IDs)"
+            >
+              <Terminal className="w-4 h-4" />
+              <span className="hidden sm:inline">Caveman Boost</span>
+            </button>
             <button onClick={() => setShowPromptLibrary(!showPromptLibrary)} className={cn("p-2 cursor-pointer transition-colors shrink-0 rounded-lg", showPromptLibrary ? "bg-brand-primary/10 text-brand-primary" : "text-gray-600 hover:text-brand-primary hover:bg-gray-200")}>
               <ClipboardList className="w-5 h-5" />
             </button>

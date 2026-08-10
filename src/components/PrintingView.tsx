@@ -13,18 +13,42 @@ const PRICE_COLOR = 20;
 
 export default function PrintingView({ printJobs, addPrintJob }: PrintingViewProps) {
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ fileName: '', pages: '1', copies: '1', colorMode: 'black-white' as 'black-white' | 'color', paperSize: 'A4', customerName: '' });
+  const [form, setForm] = useState({
+    fileName: '',
+    pages: '1',
+    copies: '1',
+    colorMode: 'black-white' as 'black-white' | 'color',
+    paperSize: 'A4',
+    customerName: '',
+    targetPrinter: '[CUPS Linux] HP LaserJet Pro M404 (Default)',
+  });
 
   const cost = (Number(form.pages) || 1) * (Number(form.copies) || 1) * (form.colorMode === 'color' ? PRICE_COLOR : PRICE_BW);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!form.fileName || !form.customerName) return;
     addPrintJob({
       fileName: form.fileName, pages: Number(form.pages) || 1,
       copies: Number(form.copies) || 1, colorMode: form.colorMode,
       paperSize: form.paperSize, customerName: form.customerName, cost,
     });
-    setForm({ fileName: '', pages: '1', copies: '1', colorMode: 'black-white', paperSize: 'A4', customerName: '' });
+    try {
+      await fetch('/api/print/local', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: form.fileName,
+          targetPrinter: form.targetPrinter,
+          pages: Number(form.pages) || 1,
+          copies: Number(form.copies) || 1,
+          colorMode: form.colorMode,
+          customerName: form.customerName,
+        }),
+      });
+    } catch (e) {
+      console.warn('Local print spool notify:', e);
+    }
+    setForm({ fileName: '', pages: '1', copies: '1', colorMode: 'black-white', paperSize: 'A4', customerName: '', targetPrinter: '[CUPS Linux] HP LaserJet Pro M404 (Default)' });
     setShowForm(false);
   };
 
@@ -42,6 +66,22 @@ export default function PrintingView({ printJobs, addPrintJob }: PrintingViewPro
           className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-text-primary text-xs rounded-lg transition-all">
           <Plus className="w-3.5 h-3.5" /> New Print Job
         </button>
+      </div>
+
+      {/* Local Print Automation Daemon Status Banner */}
+      <div className="px-4 pt-4">
+        <div className="flex items-center justify-between p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+          <div className="flex items-center gap-2.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+            <div>
+              <div className="text-xs font-bold text-orange-400">Local Print Spooler Daemon Online (CUPS / win32print)</div>
+              <div className="text-[10px] text-gray-400">Default Target: HP LaserJet Pro M404 · Zero cloud printing dependencies</div>
+            </div>
+          </div>
+          <span className="text-[10px] bg-green-500/20 text-green-400 font-semibold px-2 py-0.5 rounded-full border border-green-500/30">
+            Local USB / Network Ready
+          </span>
+        </div>
       </div>
 
       {/* Stats */}
@@ -124,6 +164,19 @@ export default function PrintingView({ printJobs, addPrintJob }: PrintingViewPro
                 <input value={form.customerName} onChange={e => setForm(p => ({ ...p, customerName: e.target.value }))}
                   placeholder="Customer name"
                   className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-white/25 focus:outline-none focus:border-orange-500/50 transition-all" />
+              </div>
+              <div>
+                <label className="text-gray-600 text-xs mb-1 block">Local Target Printer (CUPS / win32print)</label>
+                <select
+                  value={form.targetPrinter}
+                  onChange={e => setForm(p => ({ ...p, targetPrinter: e.target.value }))}
+                  className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-orange-500/50 transition-all"
+                >
+                  <option value="[CUPS Linux] HP LaserJet Pro M404 (Default)">[CUPS Linux] HP LaserJet Pro M404 (Default)</option>
+                  <option value="[CUPS Linux] EPSON L3110 Series (USB)">[CUPS Linux] EPSON L3110 Series (USB)</option>
+                  <option value="[win32print Windows] Microsoft Print to PDF">[win32print Windows] Microsoft Print to PDF</option>
+                  <option value="[win32print Windows] Brother DCP-L2540DW">[win32print Windows] Brother DCP-L2540DW</option>
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

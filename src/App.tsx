@@ -229,6 +229,7 @@ export default function App() {
             todayRevenue={store.todayRevenue}
             setActiveCategory={store.setActiveCategory}
             onMenuClick={() => setIsMobileSidebarOpen(true)}
+            addServiceTicket={store.addServiceTicket}
           />
           <div className="flex-1 overflow-hidden">
             {renderContent()}
