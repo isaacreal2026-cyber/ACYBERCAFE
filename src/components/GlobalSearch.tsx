@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Search, Music, Video, BookOpen, LayoutDashboard, Loader2, Download, X, AlertCircle } from 'lucide-react';
+import { Search, Music, Video, BookOpen, LayoutDashboard, Loader2, Download, X } from 'lucide-react';
 import { ToolCategory } from '../types';
 
 type SearchTab = 'music' | 'video' | 'pdf' | 'internal';
@@ -175,7 +175,7 @@ export default function GlobalSearch({ setActiveCategory }: GlobalSearchProps) {
           setError('Failed to extract direct media link. Internal backend handlers and external proxies timed out or failed.');
         }
       } else {
-        let combinedResults: any[] = [];
+        const combinedResults: any[] = [];
 
         if (tab === 'music' || tab === 'video') {
           try {

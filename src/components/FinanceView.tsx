@@ -1,4 +1,4 @@
-import { DollarSign, TrendingUp, ArrowUpRight, CreditCard, Smartphone, Banknote } from 'lucide-react';
+import { DollarSign, TrendingUp, ArrowUpRight, CreditCard, Smartphone, Banknote, Download, FileSpreadsheet } from 'lucide-react';
 import { Transaction } from '../types';
 import { cn } from '../utils/cn';
 
@@ -21,11 +21,47 @@ export default function FinanceView({ transactions, todayRevenue }: FinanceViewP
 
   const maxService = Math.max(...Object.values(byService), 1);
 
+  const handleExportBookkeeping = () => {
+    const headers = ["ID", "Service Type", "Customer Name", "Amount (KES)", "Payment Method", "Timestamp"];
+    const rows = transactions.map(t => [
+      t.id,
+      `"${t.type}"`,
+      `"${t.customerName}"`,
+      t.amount,
+      t.paymentMethod.toUpperCase(),
+      `"${new Date(t.createdAt).toLocaleString()}"`
+    ]);
+    const summaryRows = [
+      [],
+      ["SUMMARY REPORT"],
+      ["Total Revenue (KES)", totalRevenue],
+      ["M-Pesa Total (KES)", mpesa],
+      ["Cash Total (KES)", cash],
+      ["Card Total (KES)", card]
+    ];
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(",")), ...summaryRows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `CyberPlus_Bookkeeping_Sheet_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-surface-bg p-5 space-y-5">
-      <h2 className="text-text-primary font-semibold flex items-center gap-2">
-        <DollarSign className="w-4 h-4 text-green-400" /> Financial Dashboard
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-text-primary font-semibold flex items-center gap-2">
+          <DollarSign className="w-4 h-4 text-green-400" /> Financial Dashboard
+        </h2>
+        <button
+          onClick={handleExportBookkeeping}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs font-semibold rounded-xl transition-all shadow-lg shadow-green-500/20"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5" />
+          <span>Export Bookkeeping Sheet (.csv)</span>
+        </button>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

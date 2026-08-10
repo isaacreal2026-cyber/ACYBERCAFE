@@ -1,7 +1,8 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "cyberplus-operations-platform",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.1.0-superpower",
+  "description": "CyberPlus - Cyber Cafe Management Platform & Superpower AI System Infrastructure",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",

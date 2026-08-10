@@ -70,6 +70,56 @@ export default function WritingView() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportDocx = async () => {
+    if (!output || !selectedTool) return;
+    try {
+      const res = await fetch('/api/export-docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: selectedTool.name,
+          content: output,
+          customerName: formData.fullName || formData.applicantName || 'CyberPlus Customer',
+        }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${selectedTool.name.replace(/\s+/g, '_')}_${Date.now()}.docx`;
+        a.click();
+      }
+    } catch (e) {
+      console.error('DOCX export error:', e);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!output || !selectedTool) return;
+    try {
+      const res = await fetch('/api/export-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: selectedTool.name,
+          content: output,
+          customerName: formData.fullName || formData.applicantName || 'CyberPlus Customer',
+        }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${selectedTool.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+        a.click();
+      }
+    } catch (e) {
+      console.error('PDF export error:', e);
+    }
+  };
+
   if (!selectedTool) {
     return (
       <div className="h-full bg-surface-bg overflow-y-auto">
@@ -233,9 +283,26 @@ export default function WritingView() {
                   <button
                     onClick={handleDownload}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
+                    title="Download raw .txt file"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    Download
+                    TXT
+                  </button>
+                  <button
+                    onClick={handleExportDocx}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-lg transition-all shadow-sm hover-lift"
+                    title="Export as Microsoft Word (.docx) file"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    DOCX
+                  </button>
+                  <button
+                    onClick={handleExportPdf}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-all shadow-sm hover-lift"
+                    title="Export as PDF (.pdf) file"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    PDF
                   </button>
                 </div>
               </div>

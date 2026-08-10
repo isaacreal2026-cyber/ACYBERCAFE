@@ -138,7 +138,40 @@ export default function AuthView({ onLogin }: { onLogin: (email: string, name: s
 
           <div className="mt-4 flex items-center justify-between">
             <div className="h-px bg-white/10 flex-1"></div>
-            <span className="text-xs text-gray-500 px-4 uppercase tracking-wider">Or continue with</span>
+            <span className="text-xs text-gray-500 px-4 uppercase tracking-wider">Quick Workstation Role Access</span>
+            <div className="h-px bg-white/10 flex-1"></div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => onLogin('attendant@cyberplus.com', 'Alex Johnson - Attendant')}
+              className="w-full bg-[#242b3d] hover:bg-[#2d364c] text-cyan-400 border border-cyan-500/30 text-xs font-semibold rounded-xl py-2.5 px-2 transition-all flex flex-col items-center justify-center text-center"
+            >
+              <span>Cyber Attendant</span>
+              <span className="text-[9px] text-gray-400 font-normal">Staff Workstation</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onLogin('manager@cyberplus.com', 'Grace Wangari - Manager')}
+              className="w-full bg-[#242b3d] hover:bg-[#2d364c] text-purple-400 border border-purple-500/30 text-xs font-semibold rounded-xl py-2.5 px-2 transition-all flex flex-col items-center justify-center text-center"
+            >
+              <span>Cyber Manager</span>
+              <span className="text-[9px] text-gray-400 font-normal">Revenue Control</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onLogin('customer@cyberplus.com', 'John Kamau - Customer')}
+              className="w-full bg-[#242b3d] hover:bg-[#2d364c] text-emerald-400 border border-emerald-500/30 text-xs font-semibold rounded-xl py-2.5 px-2 transition-all flex flex-col items-center justify-center text-center"
+            >
+              <span>Walk-in Customer</span>
+              <span className="text-[9px] text-gray-400 font-normal">Self-Service Portal</span>
+            </button>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <div className="h-px bg-white/10 flex-1"></div>
+            <span className="text-xs text-gray-500 px-4 uppercase tracking-wider">Or continue with Google</span>
             <div className="h-px bg-white/10 flex-1"></div>
           </div>
 
