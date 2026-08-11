@@ -119,8 +119,17 @@ function downloadFileWithRedirects(
   });
 }
 
+let isDownloadingYtDlp = false;
+
 // Standalone self-contained Linux amd64 compiled binary manager to bypass Python context errors
 async function ensureLocalYtDlpBinary(): Promise<string | null> {
+  if (isDownloadingYtDlp) {
+    while (isDownloadingYtDlp) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return workingYtDlpCmd;
+  }
+
   const binaryPath = "/tmp/yt-dlp";
 
   if (fs.existsSync(binaryPath)) {
@@ -143,6 +152,8 @@ async function ensureLocalYtDlpBinary(): Promise<string | null> {
       );
     }
   }
+
+  isDownloadingYtDlp = true;
 
   // Standalone high-performance compiled binary released by yt-dlp Core
   const downloadUrl =
@@ -170,6 +181,8 @@ async function ensureLocalYtDlpBinary(): Promise<string | null> {
   } catch (err: any) {
     console.error(`[Yt-Dlp Binary Setup Failed]`, err.message);
     return null;
+  } finally {
+    isDownloadingYtDlp = false;
   }
 }
 
@@ -602,6 +615,18 @@ async function startServer() {
       expiresAt: number;
     }
   >();
+
+  // Override set method to enforce capacity limit of 1000 keys
+  const originalSet = extractionCache.set.bind(extractionCache);
+  extractionCache.set = function (key, value) {
+    if (this.size >= 1000 && !this.has(key)) {
+      const oldestKey = this.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.delete(oldestKey);
+      }
+    }
+    return originalSet(key, value);
+  };
 
   // Simple in-memory proxy pool for yt-dlp (populated via env, or default fallbacks)
   const proxyPoolStr = process.env.PROXY_POOL || "";
@@ -2761,3 +2786,13 @@ async function startServer() {
 }
 
 startServer();
+
+// Top-Level Error and Promise Rejection Safety Handlers
+process.on("uncaughtException", (error) => {
+  console.error("[CRITICAL] Uncaught Exception on server process:", error);
+  // Graceful log hook, keep process alive if safe, or log and continue
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[CRITICAL] Unhandled Promise Rejection at:", promise, "reason:", reason);
+});
