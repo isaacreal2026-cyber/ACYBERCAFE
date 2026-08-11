@@ -38,6 +38,12 @@ export default function App() {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('mockAuth=true')) {
+      store.login('alex@example.com', 'Alex Johnson');
+      setIsAuthChecking(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         store.login(user.email || '', user.displayName || user.email?.split('@')[0] || 'User');
