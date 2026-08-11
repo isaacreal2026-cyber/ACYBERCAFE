@@ -18,9 +18,9 @@ if (!fs.existsSync('/tmp/agent_uploads/')) {
 
 // Endpoint to handle Agent Execution
 router.post('/process', upload.single('file'), async (req, res) => {
+  const file = req.file;
   try {
     const { taskType, prompt, history, fileContext } = req.body;
-    const file = req.file;
 
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({ error: "GEMINI_API_KEY is missing." });
@@ -124,14 +124,13 @@ CODE REQUIREMENTS (if needsInfo is false):
         textResponse = result.chatResponse || "I am processing your request.";
         
         if (result.needsInfo || !result.code) {
-          if (file && fs.existsSync(file.path)) fs.unlinkSync(file.path);
           // Send back the conversational response, no script execution
           return res.json({ text: textResponse, fileUrl: null });
         }
 
         let code = result.code;
-      // Clean markdown tags if it accidentally included them
-      code = code.replace(/```javascript/gi, '').replace(/```js/gi, '').replace(/```/g, '').trim();
+        // Clean markdown tags if it accidentally included them
+        code = code.replace(/```javascript/gi, '').replace(/```js/gi, '').replace(/```/g, '').trim();
 
         console.log('[Agent] Generated Script:\n', code);
         fs.writeFileSync(scriptPath, code);
@@ -161,11 +160,6 @@ CODE REQUIREMENTS (if needsInfo is false):
       }
     }
 
-    // Cleanup uploaded file
-    if (file && fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-    }
-
     res.json({
       text: textResponse,
       fileUrl: generatedFileUrl
@@ -174,6 +168,15 @@ CODE REQUIREMENTS (if needsInfo is false):
   } catch (err: any) {
     console.error("[Agent Error]", err);
     res.status(500).json({ error: err.message || "Internal server error" });
+  } finally {
+    // Cleanup uploaded file under all conditions
+    if (file && fs.existsSync(file.path)) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch (e: any) {
+        console.error('[Agent Cleanup Error]', e.message);
+      }
+    }
   }
 });
 

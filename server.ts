@@ -45,6 +45,7 @@ function getRandomProxy() {
 
 let workingYtDlpCmd: string | null = null;
 let checkedYtDlp = false;
+let isDownloadingYtDlp = false;
 
 // Custom robust file downloader inside container that handles intermediate HTTP headers / redirects securely
 function downloadFileWithRedirects(
@@ -123,6 +124,13 @@ function downloadFileWithRedirects(
 async function ensureLocalYtDlpBinary(): Promise<string | null> {
   const binaryPath = "/tmp/yt-dlp";
 
+  if (isDownloadingYtDlp) {
+    while (isDownloadingYtDlp) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    return workingYtDlpCmd;
+  }
+
   if (fs.existsSync(binaryPath)) {
     try {
       await execAsync(`chmod +x "${binaryPath}"`);
@@ -144,6 +152,7 @@ async function ensureLocalYtDlpBinary(): Promise<string | null> {
     }
   }
 
+  isDownloadingYtDlp = true;
   // Standalone high-performance compiled binary released by yt-dlp Core
   const downloadUrl =
     "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
@@ -170,6 +179,8 @@ async function ensureLocalYtDlpBinary(): Promise<string | null> {
   } catch (err: any) {
     console.error(`[Yt-Dlp Binary Setup Failed]`, err.message);
     return null;
+  } finally {
+    isDownloadingYtDlp = false;
   }
 }
 
@@ -602,6 +613,18 @@ async function startServer() {
       expiresAt: number;
     }
   >();
+
+  // Override set to cap size at 1000 keys and prevent memory leaks
+  const originalSet = extractionCache.set.bind(extractionCache);
+  extractionCache.set = function (key, value) {
+    if (this.size >= 1000 && !this.has(key)) {
+      const firstKey = this.keys().next().value;
+      if (firstKey !== undefined) {
+        this.delete(firstKey);
+      }
+    }
+    return originalSet(key, value);
+  };
 
   // Simple in-memory proxy pool for yt-dlp (populated via env, or default fallbacks)
   const proxyPoolStr = process.env.PROXY_POOL || "";
@@ -2759,5 +2782,18 @@ async function startServer() {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }
+
+process.on("uncaughtException", (error) => {
+  console.error("[CRITICAL] Uncaught Exception:", error);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error(
+    "[CRITICAL] Unhandled Promise Rejection at:",
+    promise,
+    "reason:",
+    reason,
+  );
+});
 
 startServer();
