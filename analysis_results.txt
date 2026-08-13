@@ -1,52 +1,20 @@
-=== Analyzing Codebase ===
+--- DEPENDENCY ANALYSIS ---
+[DUPLICATE/OVERLAP] Both "@google/generative-ai" and "@google/genai" are installed.
+[DEP] lucide-react is imported. Version: ^1.18.0
+[DEP] motion is imported. Version: ^12.41.0
 
-Found 13 files exceeding threshold:
-  ./server.ts: 2763 lines
-  ./src/components/DocsView.tsx: 698 lines
-  ./src/components/SearchEngineView.tsx: 613 lines
-  ./src/components/HelpFaqView.tsx: 570 lines
-  ./src/data/writingTools.ts: 568 lines
-  ./src/components/GlobalSearch.tsx: 495 lines
-  ./src/components/CodeView.tsx: 482 lines
-  ./src/components/AudioView.tsx: 470 lines
-  ./src/components/ImageView.tsx: 468 lines
-  ./src/components/Sidebar.tsx: 391 lines
-  ./src/components/VideoView.tsx: 379 lines
-  ./src/components/CyberAgentView.tsx: 348 lines
-  ./src/components/ChatView.tsx: 330 lines
+--- FRONTEND LAZY LOADING & BUNDLE SIZE ANALYSIS ---
+Found 27 component views imported statically in App.tsx.
+Found 0 lazy-loaded components.
+[PERFORMANCE ISSUE] Monolithic Frontend Bundle: All views are statically imported. Vite is forcing everything into a single ~820kB bundle. Implementing lazy loading with Suspense will split these into multiple smaller chunks, dramatically improving Initial Load Time.
 
-Detecting Duplicate Blocks (min 6 identical lines)...
-Found duplicate pattern candidates:
-  Pattern: "</div> | </div> | )} | </div> | ); | }"
-    Occurrences: ./src/components/HelpFaqView.tsx:565, ./src/components/ServicesView.tsx:226, ./src/components/CustomerView.tsx:190, ./src/components/DocumentsView.tsx:245, ./src/components/VideoView.tsx:374, ./src/components/PrintingView.tsx:168, ./src/components/ImageView.tsx:463, ./src/components/GovernmentServicesView.tsx:271, ./src/components/GlobalSearch.tsx:490
-  Pattern: "res, | req.headers.range, | 4, | 0, | defaultContentType, | );"
-    Occurrences: ./server.ts:1955, ./server.ts:2112, ./server.ts:2015, ./server.ts:1925, ./server.ts:2082, ./server.ts:2046, ./server.ts:1988
-  Pattern: "req.headers.range, | 4, | 0, | defaultContentType, | ); | return;"
-    Occurrences: ./server.ts:2113, ./server.ts:2016, ./server.ts:1926, ./server.ts:2083, ./server.ts:1989, ./server.ts:2047, ./server.ts:1956
-  Pattern: "</div> | </div> | </div> | )} | </div> | );"
-    Occurrences: ./src/components/HelpFaqView.tsx:564, ./src/components/ServicesView.tsx:225, ./src/components/CustomerView.tsx:189, ./src/components/DocumentsView.tsx:244, ./src/components/VideoView.tsx:373, ./src/components/ImageView.tsx:462, ./src/components/PrintingView.tsx:167
-  Pattern: "a.download = filename; | a.target = '_blank'; | a.rel = 'noopener noreferrer'; | document.body.appen"
-    Occurrences: ./src/components/GlobalSearch.tsx:91, ./src/components/SearchEngineView.tsx:95, ./src/components/SearchEngineView.tsx:110, ./src/components/GlobalSearch.tsx:115, ./src/components/GlobalSearch.tsx:76, ./src/components/SearchEngineView.tsx:135
-  Pattern: "</div> | </div> | </div> | </div> | ); | }"
-    Occurrences: ./src/components/AuthView.tsx:167, ./src/components/GitClientView.tsx:252, ./src/components/DashboardView.tsx:240, ./src/components/AudioView.tsx:465, ./src/components/Sidebar.tsx:386
-  Pattern: "</button> | ); | })} | </div> | </div>"
-    Occurrences: ./src/components/HelpFaqView.tsx:240, ./src/components/ServicesView.tsx:117, ./src/components/DashboardView.tsx:122, ./src/components/DesignStudioView.tsx:180, ./src/components/DesignStudioView.tsx:119
-  Pattern: "</button> | ))} | </div> | </div> | <div>"
-    Occurrences: ./src/components/VideoView.tsx:176, ./src/components/VideoView.tsx:156, ./src/components/AudioView.tsx:200, ./src/components/ImageView.tsx:239, ./src/components/ImageView.tsx:218
-  Pattern: "audioPreviewUrl: `/api/yt/stream?url=${encodeURIComponent(videoUrl)}&format=audio`, | videoPreviewUr"
-    Occurrences: ./server.ts:352, ./server.ts:308, ./server.ts:416, ./server.ts:475
-  Pattern: "await pipeStreamWithRedirects( | targetStreamUrl, | res, | req.headers.range, | 4, | 0,"
-    Occurrences: ./server.ts:2080, ./server.ts:1923, ./server.ts:1986, ./server.ts:2110
-  Pattern: "targetStreamUrl, | res, | req.headers.range, | 4, | 0, | defaultContentType,"
-    Occurrences: ./server.ts:2081, ./server.ts:2111, ./server.ts:1924, ./server.ts:1987
-  Pattern: "4, | 0, | defaultContentType, | ); | return; | }"
-    Occurrences: ./server.ts:2084, ./server.ts:2017, ./server.ts:1990, ./server.ts:2114
-  Pattern: "</div> | </div> | ); | })} | </div> | </div>"
-    Occurrences: ./src/components/StaffView.tsx:99, ./src/components/ImageView.tsx:393, ./src/components/HelpFaqView.tsx:378, ./src/components/FinanceView.tsx:98
-  Pattern: "</button> | </div> | </div> | </div> | )} | </div>"
-    Occurrences: ./src/components/VideoView.tsx:372, ./src/components/PrintingView.tsx:166, ./src/components/HelpFaqView.tsx:563, ./src/components/CustomerView.tsx:188
-  Pattern: "))} | </div> | </div> | </div> | ); | }"
-    Occurrences: ./src/components/SettingsView.tsx:176, ./src/components/ScannerView.tsx:142, ./src/components/DesignStudioView.tsx:241, ./src/components/WritingView.tsx:113
-
-Analyzing Undocumented Files...
-  ./src/lib/gemini.ts: 7 functions with little or no documentation comments
+--- BACKEND COLD STARTUP & IMPORTS ANALYSIS ---
+Found 15 top-level imports in server.ts.
+[HEAVY STATIC IMPORT] "@distube/ytdl-core" is imported statically at the top level. This increases server startup time and memory footprint (Cold Start Latency).
+[HEAVY STATIC IMPORT] "youtube-sr" is imported statically at the top level. This increases server startup time and memory footprint (Cold Start Latency).
+[HEAVY STATIC IMPORT] "cheerio" is imported statically at the top level. This increases server startup time and memory footprint (Cold Start Latency).
+[HEAVY STATIC IMPORT] "@google/genai" is imported statically at the top level. This increases server startup time and memory footprint (Cold Start Latency).
+[HEAVY STATIC IMPORT] "groq-sdk" is imported statically at the top level. This increases server startup time and memory footprint (Cold Start Latency).
+[DYNAMIC IMPORT] "openai" is loaded dynamically. Good!
+[DYNAMIC IMPORT] "pdf-parse" is loaded dynamically. Good!
+[DYNAMIC IMPORT] "puppeteer" is loaded dynamically. Good!
