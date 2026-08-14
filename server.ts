@@ -9,12 +9,13 @@ import YouTube from "youtube-sr";
 import * as cheerio from "cheerio";
 import { GoogleGenAI } from "@google/genai";
 import Groq from "groq-sdk";
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { promisify } from "util";
 import agentRouter from "./src/server/agent";
 import pdfAiRouter from "./src/server/pdf-ai";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // --- Anti-Detection / Scraping Modules (User Request Alignment) ---
 const USER_AGENTS = [
@@ -2382,6 +2383,15 @@ async function startServer() {
       return res.status(400).json({ error: "Missing site_url" });
     }
 
+    try {
+      const parsedUrl = new URL(siteUrl);
+      if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+        return res.status(400).json({ error: "Invalid URL protocol. Only http and https are allowed." });
+      }
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid site_url" });
+    }
+
     let browser = null;
     try {
       console.log(`[PDF Scraper] Fetching ${siteUrl} using Puppeteer`);
@@ -2499,6 +2509,15 @@ async function startServer() {
       return res.status(400).json({ error: "Missing pdf_url" });
     }
 
+    try {
+      const parsedUrl = new URL(pdf_url);
+      if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+        return res.status(400).json({ error: "Invalid URL protocol. Only http and https are allowed." });
+      }
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid pdf_url" });
+    }
+
     // Check Cache
     const cached = pdfExtractionCache.get(pdf_url);
     if (cached && cached.expiresAt > Date.now()) {
@@ -2561,9 +2580,9 @@ async function startServer() {
         return res.status(400).json({ error: "Git command not allowed" });
       }
 
-      let gitArgs = "";
+      let gitArgs: string[] = [];
       if (args && Array.isArray(args)) {
-        gitArgs = args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(" ");
+        gitArgs = args.map((a) => String(a));
       }
 
       // Check if git is initialized
@@ -2572,7 +2591,7 @@ async function startServer() {
         return res.status(400).json({ error: "Git repository not initialized" });
       }
 
-      const { stdout, stderr } = await execAsync(`git ${command} ${gitArgs}`);
+      const { stdout, stderr } = await execFileAsync("git", [command, ...gitArgs]);
 
       return res.json({ status: "success", stdout, stderr });
     } catch (error: any) {
