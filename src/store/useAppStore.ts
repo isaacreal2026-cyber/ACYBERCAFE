@@ -4,7 +4,6 @@ import {
   Customer, ServiceTicket, PrintJob, StaffMember, Transaction, Notification, StoredDocument,
   PromptItem, SavedAsset
 } from '../types';
-import { chatWithGemini } from '../lib/gemini';
 import { firebaseSignOut, auth } from '../lib/firebase';
 
 let idCounter = 0;
