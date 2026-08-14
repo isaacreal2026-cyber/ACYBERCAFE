@@ -603,6 +603,16 @@ async function startServer() {
     }
   >();
 
+  // Background eviction loop to clear expired extractionCache entries every hour to prevent unbounded memory growth
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of extractionCache.entries()) {
+      if (value.expiresAt < now) {
+        extractionCache.delete(key);
+      }
+    }
+  }, 1000 * 60 * 60);
+
   // Simple in-memory proxy pool for yt-dlp (populated via env, or default fallbacks)
   const proxyPoolStr = process.env.PROXY_POOL || "";
   const proxyPool = proxyPoolStr
