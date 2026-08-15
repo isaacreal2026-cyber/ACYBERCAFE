@@ -4,7 +4,6 @@ import {
   Customer, ServiceTicket, PrintJob, StaffMember, Transaction, Notification, StoredDocument,
   PromptItem, SavedAsset
 } from '../types';
-import { chatWithGemini } from '../lib/gemini';
 import { firebaseSignOut, auth } from '../lib/firebase';
 
 let idCounter = 0;
@@ -87,10 +86,8 @@ export function useAppStore() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const login = useCallback((email: string, name: string) => {
-    // In a real app, this would validate credentials
+  const login = useCallback((_email: string, _name: string) => {
     setIsAuthenticated(true);
-    // Optionally update user info here
   }, []);
 
   const logout = useCallback(async () => {
@@ -155,12 +152,10 @@ export function useAppStore() {
 
     const userMsg: Message = { id: generateId(), role: 'user', content, timestamp: new Date() };
 
-    let currentMessages: Message[] = [];
     setConversations(prev => prev.map(c => {
       if (c.id !== convId) return c;
       const newTitle = c.messages.length === 0 ? content.slice(0, 40) + (content.length > 40 ? '...' : '') : c.title;
-      currentMessages = [...c.messages, userMsg];
-      return { ...c, title: newTitle, messages: currentMessages, updatedAt: new Date() };
+      return { ...c, title: newTitle, messages: [...c.messages, userMsg], updatedAt: new Date() };
     }));
 
     setIsLoading(true);
@@ -218,7 +213,7 @@ export function useAppStore() {
       queuePosition: waitingCount + 1,
       createdAt: new Date(), updatedAt: new Date(),
     };
-    setServiceTickets(prev => [newTicket, ...prev]);
+    setServiceTickets(prev => [...prev, newTicket]);
     setNotifications(prev => [{
       id: generateId(), title: 'New Service Request',
       message: `${ticket.customerName} - ${ticket.serviceType}`,
@@ -228,22 +223,20 @@ export function useAppStore() {
   }, [serviceTickets]);
 
   const updateTicketStatus = useCallback((id: string, status: ServiceTicket['status']) => {
+    const targetTicket = serviceTickets.find(t => t.id === id);
     setServiceTickets(prev => prev.map(t => t.id === id ? { ...t, status, updatedAt: new Date() } : t));
-    if (status === 'completed') {
-      const ticket = serviceTickets.find(t => t.id === id);
-      if (ticket) {
-        const newTx: Transaction = {
-          id: generateId(), type: ticket.serviceType,
-          customerName: ticket.customerName, amount: ticket.amount,
-          paymentMethod: 'cash', createdAt: new Date(),
-        };
-        setTransactions(prev => [newTx, ...prev]);
-        setNotifications(prev => [{
-          id: generateId(), title: 'Service Completed',
-          message: `${ticket.serviceType} for ${ticket.customerName} completed`,
-          type: 'success', read: false, createdAt: new Date(),
-        }, ...prev]);
-      }
+    if (status === 'completed' && targetTicket) {
+      const newTx: Transaction = {
+        id: generateId(), type: targetTicket.serviceType,
+        customerName: targetTicket.customerName, amount: targetTicket.amount,
+        paymentMethod: 'cash', createdAt: new Date(),
+      };
+      setTransactions(prev => [newTx, ...prev]);
+      setNotifications(prev => [{
+        id: generateId(), title: 'Service Completed',
+        message: `${targetTicket.serviceType} for ${targetTicket.customerName} completed`,
+        type: 'success', read: false, createdAt: new Date(),
+      }, ...prev]);
     }
   }, [serviceTickets]);
 
