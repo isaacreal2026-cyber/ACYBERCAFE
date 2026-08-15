@@ -23,6 +23,8 @@ export default function DocumentsView({ documents, addDocument }: DocumentsViewP
   const [showForm, setShowForm] = useState(false);
   const [showScraper, setShowScraper] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'PDF', size: '', customerName: '', category: 'other' as StoredDocument['category'] });
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [scrapeUrl, setScrapeUrl] = useState('');
   const [isScraping, setIsScraping] = useState(false);
@@ -34,11 +36,27 @@ export default function DocumentsView({ documents, addDocument }: DocumentsViewP
     return matchSearch && matchCat;
   });
 
-  const handleAdd = () => {
-    if (!form.name) return;
-    addDocument({ name: form.name, type: form.type, size: form.size || '—', customerName: form.customerName, category: form.category });
+  const handleCancelForm = () => {
     setForm({ name: '', type: 'PDF', size: '', customerName: '', category: 'other' });
+    setError('');
     setShowForm(false);
+  };
+
+  const handleAdd = async () => {
+    if (!form.name.trim()) {
+      setError('Please enter a valid File Name.');
+      return;
+    }
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await addDocument({ name: form.name, type: form.type, size: form.size || '—', customerName: form.customerName, category: form.category });
+      handleCancelForm();
+    } catch (e) {
+      setError('Failed to save document. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleScrape = async () => {
@@ -80,10 +98,10 @@ export default function DocumentsView({ documents, addDocument }: DocumentsViewP
           <div className="flex items-center gap-2">
             <button onClick={() => setShowScraper(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-brand-accent text-xs rounded-lg transition-all">
-              <Globe className="w-3.5 h-3.5" /> Scrape Web PDFs
+              <Globe className="w-3.5 h-3.5" /> Web PDF Link Extractor
             </button>
-            <button onClick={() => setShowForm(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-700 hover:bg-green-600 text-text-primary text-xs rounded-lg transition-all">
+            <button onClick={() => { setError(''); setShowForm(true); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white text-xs rounded-lg transition-all">
               <Plus className="w-3.5 h-3.5" /> Add File
             </button>
           </div>
@@ -150,8 +168,8 @@ export default function DocumentsView({ documents, addDocument }: DocumentsViewP
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-surface-card border border-brand-accent rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[80vh]">
             <div className="flex items-center justify-between p-5 border-b border-white/8">
-              <h3 className="text-text-primary font-bold flex items-center gap-2"><Globe className="w-4 h-4 text-blue-400" /> Web PDF Extractor (Exams)</h3>
-              <button onClick={() => setShowScraper(false)}><X className="w-5 h-5 text-gray-600 hover:text-gray-600" /></button>
+              <h3 className="text-text-primary font-bold flex items-center gap-2"><Globe className="w-4 h-4 text-blue-400" /> Web PDF Link Extractor</h3>
+              <button onClick={() => setShowScraper(false)}><X className="w-5 h-5 text-text-secondary hover:text-text-primary" /></button>
             </div>
             
             <div className="p-5 flex gap-2 border-b border-gray-100 shrink-0">
@@ -203,44 +221,55 @@ export default function DocumentsView({ documents, addDocument }: DocumentsViewP
 
       {showForm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-card border border-green-300 rounded-2xl w-full max-w-md shadow-2xl">
+          <div className="bg-surface-card border border-green-500/30 rounded-2xl w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between p-5 border-b border-white/8">
               <h3 className="text-text-primary font-bold flex items-center gap-2"><FileText className="w-4 h-4 text-green-400" /> Add Document</h3>
-              <button onClick={() => setShowForm(false)}><X className="w-5 h-5 text-gray-600" /></button>
+              <button onClick={handleCancelForm}><X className="w-5 h-5 text-text-secondary hover:text-text-primary" /></button>
             </div>
             <div className="p-5 space-y-3">
+              {error && (
+                <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
+                  {error}
+                </div>
+              )}
               {[
                 { label: 'File Name *', key: 'name', placeholder: 'e.g. CV_John_Kamau.pdf' },
                 { label: 'Customer Name', key: 'customerName', placeholder: 'Customer name' },
                 { label: 'File Size', key: 'size', placeholder: 'e.g. 245 KB' },
               ].map(f => (
                 <div key={f.key}>
-                  <label className="text-gray-600 text-xs mb-1 block">{f.label}</label>
+                  <label className="text-text-secondary text-xs mb-1 block">{f.label}</label>
                   <input value={(form as any)[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                     placeholder={f.placeholder}
-                    className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-white/25 focus:outline-none focus:border-green-500/50 transition-all" />
+                    className="w-full bg-surface-card border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-secondary/50 focus:outline-none focus:border-green-500/50 transition-all" />
                 </div>
               ))}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-gray-600 text-xs mb-1 block">File Type</label>
+                  <label className="text-text-secondary text-xs mb-1 block">File Type</label>
                   <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}
-                    className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-green-500/50 transition-all">
-                    {['PDF', 'DOCX', 'JPG', 'PNG', 'XLSX', 'Other'].map(t => <option key={t}>{t}</option>)}
+                    className="w-full bg-surface-card border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-green-500/50 transition-all">
+                    {['PDF', 'DOCX', 'JPG', 'PNG', 'XLSX', 'Other'].map(t => <option key={t} className="bg-surface-card text-text-primary">{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-gray-600 text-xs mb-1 block">Category</label>
+                  <label className="text-text-secondary text-xs mb-1 block">Category</label>
                   <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value as any }))}
-                    className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-green-500/50 transition-all">
-                    {Object.entries(CATEGORY_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                    className="w-full bg-surface-card border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-green-500/50 transition-all">
+                    {Object.entries(CATEGORY_CONFIG).map(([k, v]) => <option key={k} value={k} className="bg-surface-card text-text-primary">{v.label}</option>)}
                   </select>
                 </div>
               </div>
             </div>
             <div className="flex gap-2 p-5 pt-0">
-              <button onClick={() => setShowForm(false)} className="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm hover:bg-gray-100 transition-all">Cancel</button>
-              <button onClick={handleAdd} className="flex-1 py-2 bg-green-700 hover:bg-green-600 text-text-primary rounded-lg text-sm font-medium transition-all">Save File</button>
+              <button onClick={handleCancelForm} className="flex-1 py-2 border border-white/10 text-text-secondary hover:text-text-primary rounded-lg text-sm hover:bg-white/5 transition-all">Cancel</button>
+              <button
+                onClick={handleAdd}
+                disabled={isSubmitting}
+                className="flex-1 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Saving...' : 'Save File'}
+              </button>
             </div>
           </div>
         </div>

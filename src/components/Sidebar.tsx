@@ -192,8 +192,8 @@ export default function Sidebar({
               <button className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-gray-400 hover:text-text-primary hover:bg-white/5 flex items-center gap-2 transition-colors">
                 <BarChart3 className="w-3.5 h-3.5" /> Billing Usage
               </button>
-              <button className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-gray-400 hover:text-text-primary hover:bg-white/5 flex items-center gap-2 transition-colors">
-                <CreditCard className="w-3.5 h-3.5" /> Free Credits ({user.credits.toLocaleString()})
+              <button className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-white/5 flex items-center gap-2 transition-colors">
+                <CreditCard className="w-3.5 h-3.5" /> Remaining AI Credits ({user.credits.toLocaleString()})
               </button>
               <button className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-gray-400 hover:text-text-primary hover:bg-white/5 flex items-center gap-2 transition-colors">
                 <Key className="w-3.5 h-3.5" /> API Keys

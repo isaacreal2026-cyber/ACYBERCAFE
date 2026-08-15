@@ -1,19 +1,42 @@
 import { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Bot, Mail, Lock, Shield } from 'lucide-react';
+import { Bot, Mail, Lock, Shield, Eye, EyeOff } from 'lucide-react';
 import { auth, googleProvider, signInWithPopup } from '../lib/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+
+const formatAuthError = (err: any): string => {
+  const code = err?.code || '';
+  if (code.includes('auth/invalid-credential') || code.includes('auth/wrong-password')) {
+    return 'Invalid email or password. Please check your credentials and try again.';
+  }
+  if (code.includes('auth/user-not-found')) {
+    return 'No account found with this email address.';
+  }
+  if (code.includes('auth/email-already-in-use')) {
+    return 'An account with this email address already exists. Try signing in instead.';
+  }
+  if (code.includes('auth/weak-password')) {
+    return 'Password should be at least 6 characters long.';
+  }
+  if (code.includes('auth/network-request-failed')) {
+    return 'Network connection failed. Please check your internet connection and try again.';
+  }
+  return err?.message ? err.message.replace(/^Firebase:\s*/, '') : 'Authentication failed. Please try again.';
+};
 
 export default function AuthView({ onLogin }: { onLogin: (email: string, name: string) => void }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsSubmitting(true);
     try {
       if (isLogin) {
         const result = await signInWithEmailAndPassword(auth, email, password);
@@ -29,7 +52,9 @@ export default function AuthView({ onLogin }: { onLogin: (email: string, name: s
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Authentication failed');
+      setError(formatAuthError(err));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -118,21 +143,29 @@ export default function AuthView({ onLogin }: { onLogin: (email: string, name: s
                   <Lock className="h-4 w-4 text-gray-500" />
                 </div>
                 <input 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#0f111a] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-primary/50 transition-colors"
+                  className="w-full bg-[#0f111a] border border-white/10 rounded-xl pl-10 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-brand-primary/50 transition-colors"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 
             <button 
               type="submit"
-              className="w-full bg-brand-primary hover:bg-brand-secondary text-white font-medium rounded-xl py-2.5 transition-all shadow-lg shadow-brand-primary/20 mt-2"
+              disabled={isSubmitting}
+              className="w-full bg-brand-primary hover:bg-brand-secondary text-white font-medium rounded-xl py-2.5 transition-all shadow-lg shadow-brand-primary/20 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLogin ? 'Sign In' : 'Create Account'}
+              {isSubmitting ? (isLogin ? 'Signing In...' : 'Creating Account...') : (isLogin ? 'Sign In' : 'Create Account')}
             </button>
           </form>
 
