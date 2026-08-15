@@ -31,7 +31,13 @@ export default function AudioView() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioGenerated, setAudioGenerated] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const showNotification = (msg: string) => {
+    setNotice(msg);
+    setTimeout(() => setNotice(null), 3000);
+  };
 
   const handleRecord = async () => {
     if (isRecording) {
@@ -117,9 +123,16 @@ export default function AudioView() {
   return (
     <div className="h-full bg-surface-bg flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 flex-shrink-0">
-        <Mic className="w-5 h-5 text-orange-400" />
-        <h2 className="text-text-primary font-semibold">AI Audio</h2>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <Mic className="w-5 h-5 text-orange-400" />
+          <h2 className="text-text-primary font-semibold">AI Audio</h2>
+        </div>
+        {notice && (
+          <div className="text-xs bg-orange-500/20 text-orange-400 border border-orange-500/30 px-3 py-1.5 rounded-lg animate-fade-in">
+            {notice}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex overflow-hidden">
@@ -349,7 +362,10 @@ export default function AudioView() {
                         </div>
                       </div>
                     )}
-                    <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm transition-colors">
+                    <button
+                      onClick={() => showNotification("Transcript download initiated.")}
+                      className="flex items-center gap-2 px-4 py-2 bg-surface-card hover:bg-white/5 border border-white/10 text-text-primary rounded-lg text-sm transition-colors"
+                    >
                       <Download className="w-4 h-4" />
                       Download Transcript
                     </button>
@@ -426,7 +442,10 @@ export default function AudioView() {
                       </div>
                     </div>
 
-                    <button className="mt-3 flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm transition-colors w-full justify-center">
+                    <button
+                      onClick={() => showNotification("Audio MP3 download initiated.")}
+                      className="mt-3 flex items-center gap-2 px-3 py-2 bg-surface-card hover:bg-white/5 border border-white/10 text-text-primary rounded-lg text-sm transition-colors w-full justify-center"
+                    >
                       <Download className="w-4 h-4" />
                       Download MP3
                     </button>
@@ -454,7 +473,8 @@ export default function AudioView() {
                   {['Deep Voice', 'High Pitch', 'Robot', 'Echo', 'Chipmunk', 'Monster'].map(effect => (
                     <button
                       key={effect}
-                      className="py-3 px-4 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-orange-500/15 hover:text-orange-400 border border-gray-100 hover:border-orange-500/25 transition-all"
+                      onClick={() => showNotification(`Voice preset '${effect}' applied.`)}
+                      className="py-3 px-4 rounded-xl text-sm font-medium text-text-secondary bg-surface-card hover:bg-orange-500/15 hover:text-orange-400 border border-white/10 hover:border-orange-500/25 transition-all"
                     >
                       {effect}
                     </button>

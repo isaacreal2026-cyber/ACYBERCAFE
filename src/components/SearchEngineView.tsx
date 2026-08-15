@@ -397,31 +397,31 @@ export default function SearchEngineView() {
   return (
     <div className="h-full bg-surface-bg flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 flex-shrink-0 bg-surface-bg/80 backdrop-blur-md">
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-white/10 flex-shrink-0 bg-surface-bg/80 backdrop-blur-md">
         <Sparkles className="w-5 h-5 text-purple-400" />
         <h2 className="text-text-primary font-semibold">Universal Discovery Engine</h2>
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden p-6 max-w-6xl mx-auto w-full">
         <div className="mb-8 space-y-6">
-          <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-             <div className="flex bg-gray-100 p-1 rounded-xl">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+             <div className="flex bg-surface-card border border-white/10 p-1 rounded-xl">
                <button 
                  onClick={() => setMode('media')}
-                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${mode === 'media' ? 'bg-purple-500 text-text-primary shadow-lg shadow-purple-500/20' : 'text-gray-600 hover:text-white hover:bg-gray-100'}`}
+                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${mode === 'media' ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' : 'text-text-secondary hover:text-text-primary hover:bg-white/5'}`}
                >
                  <PlayCircle className="w-4 h-4" />
                  Media Search Engine
                </button>
                <button 
                  onClick={() => setMode('pdf')}
-                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${mode === 'pdf' ? 'bg-brand-primary text-white text-text-primary shadow-lg shadow-brand-primary/20' : 'text-gray-600 hover:text-white hover:bg-gray-100'}`}
+                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${mode === 'pdf' ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/20' : 'text-text-secondary hover:text-text-primary hover:bg-white/5'}`}
                >
                  <BookOpen className="w-4 h-4" />
                  Educational PDFs / Books
                </button>
              </div>
-             <div className="flex items-center gap-2 text-gray-600 text-xs">
+             <div className="flex items-center gap-2 text-text-secondary text-xs">
                 <Filter className="w-3.5 h-3.5" />
                 <span>Searching {mode === 'media' ? 'Freesound, Jamendo, Archive' : 'Archive, Open Library'}</span>
              </div>
@@ -429,20 +429,20 @@ export default function SearchEngineView() {
           
           <div className="flex items-center gap-3">
              <div className="relative flex-1">
-                <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
+                <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" />
                 <input 
                   type="text"
                   placeholder={mode === 'media' ? "Search for music, sound effects, or video..." : "Search for school books, research papers, educational texts..."}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="w-full bg-white border border-gray-200 rounded-xl pl-12 pr-4 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-primary/50 shadow-inner"
+                  className="w-full bg-surface-card border border-white/10 rounded-xl pl-12 pr-4 py-4 text-text-primary placeholder-text-secondary/50 focus:outline-none focus:border-brand-primary/50 shadow-inner"
                 />
              </div>
              <button
                onClick={handleSearch}
                disabled={isSearching || !query.trim()}
-               className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 disabled:opacity-50 text-text-primary font-medium rounded-xl shadow-lg transition-all flex items-center gap-2"
+               className="px-8 py-4 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 disabled:opacity-50 text-white font-medium rounded-xl shadow-lg transition-all flex items-center gap-2"
              >
                 {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
                 Discover
@@ -460,10 +460,10 @@ export default function SearchEngineView() {
             {mode === 'media' && (
                 <div className="grid gap-3.5">
                     {mediaResults.map((res) => (
-                        <div key={res.id} className="bg-surface-card border border-gray-100 rounded-2xl p-4 sm:p-5 hover:border-purple-500/25 hover:bg-gray-100 transition-all flex flex-col md:flex-row gap-4 justify-between items-start md:items-center group shadow-md">
+                        <div key={res.id} className="bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 hover:border-purple-500/25 hover:bg-white/5 transition-all flex flex-col md:flex-row gap-4 justify-between items-start md:items-center group shadow-md">
                             <div className="flex items-start gap-4 flex-1 min-w-0">
                                {/* Rotating Disc / Media Art placeholder */}
-                               <div className="relative shrink-0 w-12 h-12 rounded-xl bg-black/40 border border-gray-200 flex items-center justify-center overflow-hidden group-hover:border-purple-500/30 transition-all shadow-inner">
+                               <div className="relative shrink-0 w-12 h-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden group-hover:border-purple-500/30 transition-all shadow-inner">
                                   {res.mp4DownloadUrl || res.videoPreviewUrl ? (
                                     <Video className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform duration-300" />
                                   ) : (
@@ -479,7 +479,7 @@ export default function SearchEngineView() {
                                       <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase tracking-widest">{res.source}</span>
                                   </div>
                                   <h3 className="text-base font-semibold text-text-primary/95 truncate leading-snug mb-0.5 group-hover:text-purple-300 transition-colors" title={res.title}>{res.title}</h3>
-                                  <p className="text-xs text-gray-600 truncate">By {res.creator}</p>
+                                  <p className="text-xs text-text-secondary truncate">By {res.creator}</p>
                                   
                                   {res.videoPreviewUrl ? (
                                       <div className="mt-3 bg-black/60 rounded-xl overflow-hidden max-w-full sm:max-w-md aspect-video border border-gray-200 relative shadow-inner">
@@ -533,13 +533,13 @@ export default function SearchEngineView() {
                                    </button>
                                )}
                                {!res.mp3DownloadUrl && !res.mp4DownloadUrl && (
-                                   <div className="px-4 py-2 text-xs text-gray-600 italic">Preview Mode Only</div>
+                                   <div className="px-4 py-2 text-xs text-text-secondary italic">Preview Mode Only</div>
                                )}
                             </div>
                         </div>
                     ))}
                     {!isSearching && query && mediaResults.length === 0 && !error && (
-                        <div className="text-center py-20 text-gray-600 flex flex-col items-center">
+                        <div className="text-center py-20 text-text-secondary flex flex-col items-center">
                             <Sparkles className="w-12 h-12 mb-4 opacity-20" />
                             <p className="text-lg">No media found for your discovery intent.</p>
                             <p className="text-sm mt-2">Try broader terms or verify API connection.</p>
@@ -551,26 +551,26 @@ export default function SearchEngineView() {
             {mode === 'pdf' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
                     {pdfResults.map((res) => (
-                        <div key={res.id} className="bg-surface-card border border-gray-100 rounded-2xl p-4 sm:p-5 hover:border-brand-primary/25 hover:bg-gray-100 transition-all flex flex-col justify-between shadow-md group">
+                        <div key={res.id} className="bg-surface-card border border-white/10 rounded-2xl p-4 sm:p-5 hover:border-brand-primary/25 hover:bg-white/5 transition-all flex flex-col justify-between shadow-md group">
                             <div>
                                <div className="flex justify-between items-start gap-4 mb-3">
                                   <div className="flex-1 min-w-0">
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-brand-primary/20 text-brand-primary text-brand-primary uppercase tracking-widest mb-2 inline-block">{res.source}</span>
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-brand-primary/20 text-brand-primary uppercase tracking-widest mb-2 inline-block">{res.source}</span>
                                       <h3 className="text-sm font-semibold text-text-primary/95 line-clamp-2 leading-snug group-hover:text-brand-primary transition-colors" title={res.title}>{res.title}</h3>
                                   </div>
-                                  <div className="shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200 group-hover:border-brand-primary/20 transition-all">
+                                  <div className="shrink-0 w-10 h-10 bg-surface-card rounded-lg flex items-center justify-center border border-white/10 group-hover:border-brand-primary/20 transition-all">
                                       <BookOpen className="w-4.5 h-4.5 text-brand-primary/50" />
                                   </div>
                                 </div>
                                
-                               <div className="mb-4 space-y-1 bg-black/20 rounded-xl p-3 border border-gray-100 text-xs font-mono">
-                                  <p className="text-gray-600 truncate flex items-center gap-2">
-                                     <span className="text-gray-600 w-14">Author:</span> 
-                                     <span className="font-semibold text-gray-800 truncate">{res.author}</span>
+                               <div className="mb-4 space-y-1 bg-black/20 rounded-xl p-3 border border-white/10 text-xs font-mono">
+                                  <p className="text-text-secondary truncate flex items-center gap-2">
+                                     <span className="text-text-secondary w-14">Author:</span>
+                                     <span className="font-semibold text-text-primary truncate">{res.author}</span>
                                   </p>
-                                  <p className="text-gray-600 truncate flex items-center gap-2">
-                                     <span className="text-gray-600 w-14">Year:</span> 
-                                     <span className="font-semibold text-gray-800">{res.year}</span>
+                                  <p className="text-text-secondary truncate flex items-center gap-2">
+                                     <span className="text-text-secondary w-14">Year:</span>
+                                     <span className="font-semibold text-text-primary">{res.year}</span>
                                   </p>
                                </div>
                             </div>
@@ -578,7 +578,7 @@ export default function SearchEngineView() {
                             <div className="flex gap-2">
                                <button 
                                  onClick={() => handleDownload(res.downloadUrl, `${res.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`)}
-                                 className="flex-1 py-2.5 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary text-white/30 border border-brand-primary/20 text-brand-primary rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                                 className="flex-1 py-2.5 bg-brand-primary/10 hover:bg-brand-primary text-brand-primary hover:text-white border border-brand-primary/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                                  title="Download PDF directly"
                                >
                                   <Download className="w-3.5 h-3.5" />
@@ -588,7 +588,7 @@ export default function SearchEngineView() {
                                  href={res.webUrl}
                                  target="_blank"
                                  rel="noopener noreferrer"
-                                 className="flex-1 py-2.5 bg-brand-primary/20 text-brand-primary hover:bg-brand-primary text-white border border-brand-primary/20 text-cyan-100 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center"
+                                 className="flex-1 py-2.5 bg-brand-primary/20 text-brand-primary hover:bg-brand-primary hover:text-white border border-brand-primary/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center"
                                  title="View or borrow on Internet Archive"
                                >
                                   <BookOpen className="w-3.5 h-3.5" />
@@ -598,7 +598,7 @@ export default function SearchEngineView() {
                         </div>
                     ))}
                     {!isSearching && query && pdfResults.length === 0 && !error && (
-                        <div className="col-span-full text-center py-20 text-gray-600 flex flex-col items-center">
+                        <div className="col-span-full text-center py-20 text-text-secondary flex flex-col items-center">
                             <BookOpen className="w-12 h-12 mb-4 opacity-20" />
                             <p className="text-lg">No educational PDFs found.</p>
                             <p className="text-sm mt-2">Try different subject matter or verify terminology.</p>

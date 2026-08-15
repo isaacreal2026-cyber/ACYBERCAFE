@@ -14,18 +14,38 @@ const PRICE_COLOR = 20;
 export default function PrintingView({ printJobs, addPrintJob }: PrintingViewProps) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ fileName: '', pages: '1', copies: '1', colorMode: 'black-white' as 'black-white' | 'color', paperSize: 'A4', customerName: '' });
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const cost = (Number(form.pages) || 1) * (Number(form.copies) || 1) * (form.colorMode === 'color' ? PRICE_COLOR : PRICE_BW);
+  const pagesNum = Math.max(1, Number(form.pages) || 1);
+  const copiesNum = Math.max(1, Number(form.copies) || 1);
+  const cost = pagesNum * copiesNum * (form.colorMode === 'color' ? PRICE_COLOR : PRICE_BW);
 
-  const handleAdd = () => {
-    if (!form.fileName || !form.customerName) return;
-    addPrintJob({
-      fileName: form.fileName, pages: Number(form.pages) || 1,
-      copies: Number(form.copies) || 1, colorMode: form.colorMode,
-      paperSize: form.paperSize, customerName: form.customerName, cost,
-    });
+  const handleCancel = () => {
     setForm({ fileName: '', pages: '1', copies: '1', colorMode: 'black-white', paperSize: 'A4', customerName: '' });
+    setError('');
     setShowForm(false);
+  };
+
+  const handleAdd = async () => {
+    if (!form.fileName.trim() || !form.customerName.trim()) {
+      setError('Please provide both File Name and Customer Name.');
+      return;
+    }
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await addPrintJob({
+        fileName: form.fileName, pages: pagesNum,
+        copies: copiesNum, colorMode: form.colorMode,
+        paperSize: form.paperSize, customerName: form.customerName, cost,
+      });
+      handleCancel();
+    } catch (e) {
+      setError('Failed to add print job. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const queued = printJobs.filter(j => j.status === 'queued');
@@ -38,8 +58,8 @@ export default function PrintingView({ printJobs, addPrintJob }: PrintingViewPro
         <h2 className="text-text-primary font-semibold flex items-center gap-2">
           <Printer className="w-4 h-4 text-orange-400" /> Printing Center
         </h2>
-        <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-text-primary text-xs rounded-lg transition-all">
+        <button onClick={() => { setError(''); setShowForm(true); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-medium rounded-lg transition-all">
           <Plus className="w-3.5 h-3.5" /> New Print Job
         </button>
       </div>
@@ -57,7 +77,7 @@ export default function PrintingView({ printJobs, addPrintJob }: PrintingViewPro
               <Icon className={cn('w-5 h-5', s.color)} />
               <div>
                 <div className={cn('text-xl font-bold', s.color)}>{s.count}</div>
-                <div className="text-gray-600 text-xs">{s.label}</div>
+                <div className="text-text-secondary text-xs">{s.label}</div>
               </div>
             </div>
           );
@@ -66,14 +86,14 @@ export default function PrintingView({ printJobs, addPrintJob }: PrintingViewPro
 
       {/* Price Guide */}
       <div className="px-4 py-3 border-b border-white/8 flex items-center gap-4 text-xs">
-        <span className="text-gray-600 flex items-center gap-1"><DollarSign className="w-3 h-3 text-brand-primary" />Price guide:</span>
-        <span className="text-gray-600 bg-gray-100 px-2 py-0.5 rounded">B&W: KES {PRICE_BW}/page</span>
-        <span className="text-gray-600 bg-gray-100 px-2 py-0.5 rounded">Color: KES {PRICE_COLOR}/page</span>
+        <span className="text-text-secondary flex items-center gap-1"><DollarSign className="w-3 h-3 text-brand-primary" />Price guide:</span>
+        <span className="text-text-secondary bg-surface-card border border-white/10 px-2 py-0.5 rounded">B&W: KES {PRICE_BW}/page</span>
+        <span className="text-text-secondary bg-surface-card border border-white/10 px-2 py-0.5 rounded">Color: KES {PRICE_COLOR}/page</span>
       </div>
 
       {/* Jobs */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {printJobs.length === 0 && <div className="py-16 text-center text-gray-600 text-sm">No print jobs yet</div>}
+        {printJobs.length === 0 && <div className="py-16 text-center text-text-secondary text-sm">No print jobs yet</div>}
         {printJobs.map(job => (
           <div key={job.id} className="bg-white/3 border border-white/8 rounded-xl p-4 flex items-center gap-4 hover:border-white/15 transition-all">
             <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
@@ -82,12 +102,12 @@ export default function PrintingView({ printJobs, addPrintJob }: PrintingViewPro
                 job.status === 'printing' ? 'text-brand-primary' : job.status === 'queued' ? 'text-amber-400' : 'text-green-400')} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-gray-800 font-medium truncate">{job.fileName}</div>
+              <div className="text-sm text-text-primary font-medium truncate">{job.fileName}</div>
               <div className="flex items-center gap-3 mt-0.5">
-                <span className="text-[10px] text-gray-600">{job.customerName}</span>
-                <span className="text-[10px] text-gray-600">{job.pages}p × {job.copies} copies</span>
-                <span className="text-[10px] text-gray-600">{job.colorMode === 'color' ? 'Color' : 'B&W'}</span>
-                <span className="text-[10px] text-gray-600">{job.paperSize}</span>
+                <span className="text-[10px] text-text-secondary">{job.customerName}</span>
+                <span className="text-[10px] text-text-secondary">{job.pages}p × {job.copies} copies</span>
+                <span className="text-[10px] text-text-secondary">{job.colorMode === 'color' ? 'Color' : 'B&W'}</span>
+                <span className="text-[10px] text-text-secondary">{job.paperSize}</span>
               </div>
             </div>
             <div className="text-right flex-shrink-0">
@@ -107,62 +127,75 @@ export default function PrintingView({ printJobs, addPrintJob }: PrintingViewPro
       {/* New Print Job Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-card border border-orange-300 rounded-2xl w-full max-w-md shadow-2xl">
+          <div className="bg-surface-card border border-orange-500/30 rounded-2xl w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between p-5 border-b border-white/8">
               <h3 className="text-text-primary font-bold flex items-center gap-2"><Upload className="w-4 h-4 text-orange-400" /> New Print Job</h3>
-              <button onClick={() => setShowForm(false)}><X className="w-5 h-5 text-gray-600" /></button>
+              <button onClick={handleCancel}><X className="w-5 h-5 text-text-secondary hover:text-text-primary" /></button>
             </div>
             <div className="p-5 space-y-3">
+              {error && (
+                <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
+                  {error}
+                </div>
+              )}
               <div>
-                <label className="text-gray-600 text-xs mb-1 block">File Name *</label>
+                <label className="text-text-secondary text-xs mb-1 block">File Name *</label>
                 <input value={form.fileName} onChange={e => setForm(p => ({ ...p, fileName: e.target.value }))}
                   placeholder="e.g. CV_John_Kamau.pdf"
-                  className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-white/25 focus:outline-none focus:border-orange-500/50 transition-all" />
+                  className="w-full bg-surface-card border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-secondary/50 focus:outline-none focus:border-orange-500/50 transition-all" />
               </div>
               <div>
-                <label className="text-gray-600 text-xs mb-1 block">Customer Name *</label>
+                <label className="text-text-secondary text-xs mb-1 block">Customer Name *</label>
                 <input value={form.customerName} onChange={e => setForm(p => ({ ...p, customerName: e.target.value }))}
                   placeholder="Customer name"
-                  className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-white/25 focus:outline-none focus:border-orange-500/50 transition-all" />
+                  className="w-full bg-surface-card border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-secondary/50 focus:outline-none focus:border-orange-500/50 transition-all" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-gray-600 text-xs mb-1 block">Pages</label>
+                  <label className="text-text-secondary text-xs mb-1 block">Pages</label>
                   <input value={form.pages} onChange={e => setForm(p => ({ ...p, pages: e.target.value }))} type="number" min="1"
-                    className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-500/50 transition-all" />
+                    className="w-full bg-surface-card border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-orange-500/50 transition-all" />
                 </div>
                 <div>
-                  <label className="text-gray-600 text-xs mb-1 block">Copies</label>
+                  <label className="text-text-secondary text-xs mb-1 block">Copies</label>
                   <input value={form.copies} onChange={e => setForm(p => ({ ...p, copies: e.target.value }))} type="number" min="1"
-                    className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-500/50 transition-all" />
+                    className="w-full bg-surface-card border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-orange-500/50 transition-all" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-gray-600 text-xs mb-1 block">Print Mode</label>
+                  <label className="text-text-secondary text-xs mb-1 block">Print Mode</label>
                   <select value={form.colorMode} onChange={e => setForm(p => ({ ...p, colorMode: e.target.value as any }))}
-                    className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-orange-500/50 transition-all">
-                    <option value="black-white">Black & White</option>
-                    <option value="color">Color</option>
+                    className="w-full bg-surface-card border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-orange-500/50 transition-all">
+                    <option value="black-white" className="bg-surface-card text-text-primary">Black & White</option>
+                    <option value="color" className="bg-surface-card text-text-primary">Color</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-gray-600 text-xs mb-1 block">Paper Size</label>
+                  <label className="text-text-secondary text-xs mb-1 block">Paper Size</label>
                   <select value={form.paperSize} onChange={e => setForm(p => ({ ...p, paperSize: e.target.value }))}
-                    className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-orange-500/50 transition-all">
-                    <option>A4</option><option>A3</option><option>Letter</option><option>Legal</option>
+                    className="w-full bg-surface-card border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-orange-500/50 transition-all">
+                    <option className="bg-surface-card text-text-primary">A4</option>
+                    <option className="bg-surface-card text-text-primary">A3</option>
+                    <option className="bg-surface-card text-text-primary">Letter</option>
+                    <option className="bg-surface-card text-text-primary">Legal</option>
                   </select>
                 </div>
               </div>
-              <div className="bg-orange-500/10 border border-orange-300 rounded-lg p-3 flex items-center justify-between">
-                <span className="text-gray-600 text-sm">Estimated Cost</span>
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 flex items-center justify-between">
+                <span className="text-text-secondary text-sm">Estimated Cost</span>
                 <span className="text-orange-400 font-bold text-lg">KES {cost}</span>
               </div>
             </div>
             <div className="flex gap-2 p-5 pt-0">
-              <button onClick={() => setShowForm(false)} className="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm hover:bg-gray-100 transition-all">Cancel</button>
-              <button onClick={handleAdd} className="flex-1 py-2 bg-orange-600 hover:bg-orange-500 text-text-primary rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5">
-                <Printer className="w-3.5 h-3.5" /> Add to Queue
+              <button onClick={handleCancel} className="flex-1 py-2 border border-white/10 text-text-secondary hover:text-text-primary rounded-lg text-sm hover:bg-white/5 transition-all">Cancel</button>
+              <button
+                onClick={handleAdd}
+                disabled={isSubmitting}
+                className="flex-1 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                {isSubmitting ? 'Adding...' : 'Add to Queue'}
               </button>
             </div>
           </div>

@@ -38,9 +38,9 @@ export default function AssetsView() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-xl font-bold text-text-primary flex items-center gap-2">
-            Digital Assets Wealth
+            Operational Asset Library
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Upload documents, add tags, or paste URL links to build your asset wealth.</p>
+          <p className="text-sm text-text-secondary mt-1">Manage workspace links, reference URLs, and operational digital assets.</p>
         </div>
         <button 
           onClick={() => setIsAdding(!isAdding)}
@@ -84,8 +84,8 @@ export default function AssetsView() {
 
       <div className="flex-1 overflow-y-auto">
         {assets.length === 0 ? (
-          <div className="text-center py-20 text-gray-500">
-            <p>No assets defined yet. Add some links or documents to define your wealth.</p>
+          <div className="text-center py-20 text-text-secondary">
+            <p>No assets added yet. Save workspace links or operational documents to build your asset library.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
