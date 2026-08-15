@@ -603,6 +603,23 @@ async function startServer() {
     }
   >();
 
+  // Safe cache eviction & size bounding helper to prevent memory bloat
+  const MAX_EXTRACTION_CACHE_SIZE = 500;
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of extractionCache.entries()) {
+      if (value.expiresAt && value.expiresAt < now) {
+        extractionCache.delete(key);
+      }
+    }
+    if (extractionCache.size > MAX_EXTRACTION_CACHE_SIZE) {
+      const keysToDelete = Array.from(extractionCache.keys()).slice(0, extractionCache.size - MAX_EXTRACTION_CACHE_SIZE);
+      for (const k of keysToDelete) {
+        extractionCache.delete(k);
+      }
+    }
+  }, 300000); // Sweep every 5 minutes
+
   // Simple in-memory proxy pool for yt-dlp (populated via env, or default fallbacks)
   const proxyPoolStr = process.env.PROXY_POOL || "";
   const proxyPool = proxyPoolStr
