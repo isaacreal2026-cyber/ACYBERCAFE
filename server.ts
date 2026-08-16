@@ -4,9 +4,6 @@ import dns from "dns";
 import https from "https";
 import http from "http";
 import fs from "fs";
-import ytdl from "@distube/ytdl-core";
-import YouTube from "youtube-sr";
-import * as cheerio from "cheerio";
 import { GoogleGenAI } from "@google/genai";
 import Groq from "groq-sdk";
 import { exec } from "child_process";
@@ -327,6 +324,7 @@ async function startServer() {
       console.log(
         `[YouTube Scraper Search] Secondary attempt using youtube-sr: ${query}`,
       );
+      const YouTube = await import("youtube-sr");
       const yt = (YouTube as any).default || YouTube;
       const searchResults = await yt.search(query, {
         limit: 15,
@@ -602,6 +600,21 @@ async function startServer() {
       expiresAt: number;
     }
   >();
+
+  const MAX_CACHE_SIZE = 200;
+
+  function setExtractionCache(
+    key: string,
+    value: { videoUrl: string; audioUrl: string; expiresAt: number }
+  ) {
+    if (extractionCache.size >= MAX_CACHE_SIZE && !extractionCache.has(key)) {
+      const oldestKey = extractionCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        extractionCache.delete(oldestKey);
+      }
+    }
+    extractionCache.set(key, value);
+  }
 
   // Simple in-memory proxy pool for yt-dlp (populated via env, or default fallbacks)
   const proxyPoolStr = process.env.PROXY_POOL || "";
@@ -1348,13 +1361,13 @@ async function startServer() {
             const resolvedAudio = audioUrl || videoUrl;
 
             // Populate cache with raw urls
-            extractionCache.set(url, {
+            setExtractionCache(url, {
               videoUrl: resolvedVideo,
               audioUrl: resolvedAudio,
               expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour expiration
             });
             if (youtubeId) {
-              extractionCache.set(youtubeId, {
+              setExtractionCache(youtubeId, {
                 videoUrl: resolvedVideo,
                 audioUrl: resolvedAudio,
                 expiresAt: Date.now() + 60 * 60 * 1000,
@@ -1444,13 +1457,13 @@ async function startServer() {
             `[Unified Media Extractor] Parallel race extraction succeeded via ${fastestResult.source}`,
           );
           // Populate cache with raw urls
-          extractionCache.set(url, {
+          setExtractionCache(url, {
             videoUrl: fastestResult.videoUrl,
             audioUrl: fastestResult.audioUrl,
             expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour expiration
           });
           if (youtubeId) {
-            extractionCache.set(youtubeId, {
+            setExtractionCache(youtubeId, {
               videoUrl: fastestResult.videoUrl,
               audioUrl: fastestResult.audioUrl,
               expiresAt: Date.now() + 60 * 60 * 1000,
@@ -1482,6 +1495,8 @@ async function startServer() {
         console.log(
           `[Unified Media Extractor] Fallback: @distube/ytdl-core for URL: ${url}`,
         );
+        const ytdlModule = await import("@distube/ytdl-core");
+        const ytdl = ytdlModule.default || ytdlModule;
         const data = await ytdl.getInfo(url);
         if (
           data &&
@@ -1501,13 +1516,13 @@ async function startServer() {
             `[Unified Media Extractor] @distube/ytdl-core extraction succeeded!`,
           );
 
-          extractionCache.set(url, {
+          setExtractionCache(url, {
             videoUrl: rawVideo,
             audioUrl: rawAudio,
             expiresAt: Date.now() + 60 * 60 * 1000,
           });
           if (youtubeId) {
-            extractionCache.set(youtubeId, {
+            setExtractionCache(youtubeId, {
               videoUrl: rawVideo,
               audioUrl: rawAudio,
               expiresAt: Date.now() + 60 * 60 * 1000,
@@ -1564,13 +1579,13 @@ async function startServer() {
               `[Unified Media Extractor] Direct local yt-dlp extraction succeeded!`,
             );
 
-            extractionCache.set(url, {
+            setExtractionCache(url, {
               videoUrl: videoUrl,
               audioUrl: audioUrl,
               expiresAt: Date.now() + 60 * 60 * 1000,
             });
             if (youtubeId) {
-              extractionCache.set(youtubeId, {
+              setExtractionCache(youtubeId, {
                 videoUrl: videoUrl,
                 audioUrl: audioUrl,
                 expiresAt: Date.now() + 60 * 60 * 1000,
@@ -1619,13 +1634,13 @@ async function startServer() {
               `[Unified Media Extractor] yt-dlp internal extraction succeeded!`,
             );
 
-            extractionCache.set(url, {
+            setExtractionCache(url, {
               videoUrl: data.url,
               audioUrl: data.url,
               expiresAt: Date.now() + 60 * 60 * 1000,
             });
             if (youtubeId) {
-              extractionCache.set(youtubeId, {
+              setExtractionCache(youtubeId, {
                 videoUrl: data.url,
                 audioUrl: data.url,
                 expiresAt: Date.now() + 60 * 60 * 1000,
@@ -2130,6 +2145,8 @@ async function startServer() {
         console.log(
           `[Media Stream Proxy] All public nodes exhausted. Running last-resort native @distube/ytdl-core (mode: ${isVideo ? "video" : "audio"})...`,
         );
+        const ytdlModule = await import("@distube/ytdl-core");
+        const ytdl = ytdlModule.default || ytdlModule;
         const stream = ytdl(url, {
           filter: isVideo ? "videoandaudio" : "audioonly",
           quality: isVideo ? "highestvideo" : "highestaudio",
@@ -2180,6 +2197,8 @@ async function startServer() {
       console.log(
         `[ytdl-core Native] Fetching info for url: ${url} using @distube/ytdl-core`,
       );
+      const ytdlModule = await import("@distube/ytdl-core");
+      const ytdl = ytdlModule.default || ytdlModule;
       const info = await ytdl.getInfo(url);
 
       // Process formats to include local proxied streaming links to ensure compatibility
@@ -2411,6 +2430,7 @@ async function startServer() {
       await page.goto(siteUrl, { waitUntil: "networkidle2", timeout: 30000 });
 
       const html = await page.content();
+      const cheerio = await import("cheerio");
       const $ = cheerio.load(html);
       const pdfResults: any[] = [];
       const keywords = [
@@ -2480,6 +2500,19 @@ async function startServer() {
     string,
     { text: string; expiresAt: number }
   >();
+
+  function setPdfExtractionCache(
+    key: string,
+    value: { text: string; expiresAt: number }
+  ) {
+    if (pdfExtractionCache.size >= MAX_CACHE_SIZE && !pdfExtractionCache.has(key)) {
+      const oldestKey = pdfExtractionCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        pdfExtractionCache.delete(oldestKey);
+      }
+    }
+    pdfExtractionCache.set(key, value);
+  }
   setInterval(
     () => {
       const now = Date.now();
