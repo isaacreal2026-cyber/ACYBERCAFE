@@ -16,6 +16,15 @@ import pdfAiRouter from "./src/server/pdf-ai";
 
 const execAsync = promisify(exec);
 
+// Uncaught Process Handlers to prevent unexpected server crashes
+process.on("uncaughtException", (error) => {
+  console.error("[CRITICAL] Uncaught Exception in server:", error);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[CRITICAL] Unhandled Rejection at:", promise, "reason:", reason);
+});
+
 // --- Anti-Detection / Scraping Modules (User Request Alignment) ---
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
@@ -45,6 +54,7 @@ function getRandomProxy() {
 
 let workingYtDlpCmd: string | null = null;
 let checkedYtDlp = false;
+let isDownloadingYtDlp = false;
 
 // Custom robust file downloader inside container that handles intermediate HTTP headers / redirects securely
 function downloadFileWithRedirects(
@@ -123,6 +133,13 @@ function downloadFileWithRedirects(
 async function ensureLocalYtDlpBinary(): Promise<string | null> {
   const binaryPath = "/tmp/yt-dlp";
 
+  if (isDownloadingYtDlp) {
+    while (isDownloadingYtDlp) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    if (workingYtDlpCmd) return workingYtDlpCmd;
+  }
+
   if (fs.existsSync(binaryPath)) {
     try {
       await execAsync(`chmod +x "${binaryPath}"`);
@@ -151,8 +168,14 @@ async function ensureLocalYtDlpBinary(): Promise<string | null> {
     `[Yt-Dlp Binary] Downloading standalone compiled binary from ${downloadUrl}...`,
   );
 
+  isDownloadingYtDlp = true;
   try {
     await downloadFileWithRedirects(downloadUrl, binaryPath);
+  } finally {
+    isDownloadingYtDlp = false;
+  }
+
+  try {
     await execAsync(`chmod +x "${binaryPath}"`);
     console.log(
       `[Yt-Dlp Binary] Standing binary downloaded & marked executable.`,
