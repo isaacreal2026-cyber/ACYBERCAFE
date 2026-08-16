@@ -10,8 +10,21 @@ const __dirname = path.dirname(__filename);
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/firebase")) {
+            return "vendor-firebase";
+          }
+          if (id.includes("node_modules/lucide-react")) {
+            return "vendor-lucide";
+          }
+        },
+      },
+    },
+  },
   server: {
-
     host: "0.0.0.0",
     port: 3000,
     allowedHosts: true,
