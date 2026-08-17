@@ -10,6 +10,16 @@ const __dirname = path.dirname(__filename);
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-firebase': ['firebase/app', 'firebase/auth'],
+          'vendor-lucide': ['lucide-react'],
+        },
+      },
+    },
+  },
   server: {
 
     host: "0.0.0.0",

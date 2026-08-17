@@ -4,9 +4,6 @@ import dns from "dns";
 import https from "https";
 import http from "http";
 import fs from "fs";
-import ytdl from "@distube/ytdl-core";
-import YouTube from "youtube-sr";
-import * as cheerio from "cheerio";
 import { GoogleGenAI } from "@google/genai";
 import Groq from "groq-sdk";
 import { exec } from "child_process";
@@ -327,6 +324,8 @@ async function startServer() {
       console.log(
         `[YouTube Scraper Search] Secondary attempt using youtube-sr: ${query}`,
       );
+      const YouTubeModule = await import("youtube-sr");
+      const YouTube = (YouTubeModule as any).default || YouTubeModule;
       const yt = (YouTube as any).default || YouTube;
       const searchResults = await yt.search(query, {
         limit: 15,
@@ -1482,6 +1481,8 @@ async function startServer() {
         console.log(
           `[Unified Media Extractor] Fallback: @distube/ytdl-core for URL: ${url}`,
         );
+        const ytdlModule = await import("@distube/ytdl-core");
+        const ytdl = (ytdlModule as any).default || ytdlModule;
         const data = await ytdl.getInfo(url);
         if (
           data &&
@@ -2130,6 +2131,8 @@ async function startServer() {
         console.log(
           `[Media Stream Proxy] All public nodes exhausted. Running last-resort native @distube/ytdl-core (mode: ${isVideo ? "video" : "audio"})...`,
         );
+        const ytdlModule = await import("@distube/ytdl-core");
+        const ytdl = (ytdlModule as any).default || ytdlModule;
         const stream = ytdl(url, {
           filter: isVideo ? "videoandaudio" : "audioonly",
           quality: isVideo ? "highestvideo" : "highestaudio",
@@ -2180,6 +2183,8 @@ async function startServer() {
       console.log(
         `[ytdl-core Native] Fetching info for url: ${url} using @distube/ytdl-core`,
       );
+      const ytdlModule = await import("@distube/ytdl-core");
+      const ytdl = (ytdlModule as any).default || ytdlModule;
       const info = await ytdl.getInfo(url);
 
       // Process formats to include local proxied streaming links to ensure compatibility
@@ -2411,6 +2416,8 @@ async function startServer() {
       await page.goto(siteUrl, { waitUntil: "networkidle2", timeout: 30000 });
 
       const html = await page.content();
+      const cheerioModule = await import("cheerio");
+      const cheerio = (cheerioModule as any).default || cheerioModule;
       const $ = cheerio.load(html);
       const pdfResults: any[] = [];
       const keywords = [
