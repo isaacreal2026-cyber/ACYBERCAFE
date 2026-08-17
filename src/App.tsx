@@ -1,35 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { cn } from './utils/cn';
 import { ThemeProvider } from './lib/theme';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
-import CustomerView from './components/CustomerView';
-import ServicesView from './components/ServicesView';
-import GovernmentServicesView from './components/GovernmentServicesView';
-import PrintingView from './components/PrintingView';
-import ScannerView from './components/ScannerView';
-import DesignStudioView from './components/DesignStudioView';
-import DocumentsView from './components/DocumentsView';
-import FinanceView from './components/FinanceView';
-import ReportsView from './components/ReportsView';
-import StaffView from './components/StaffView';
-import NotificationsView from './components/NotificationsView';
-import SettingsView from './components/SettingsView';
-import ChatView from './components/ChatView';
-import WritingView from './components/WritingView';
-import ImageView from './components/ImageView';
-import AudioView from './components/AudioView';
-import VideoView from './components/VideoView';
-import DocsView from './components/DocsView';
-import CodeView from './components/CodeView';
-import SearchEngineView from './components/SearchEngineView';
-import HelpFaqView from './components/HelpFaqView';
-import CyberAgentView from './components/CyberAgentView';
 import AuthView from './components/AuthView';
-import AssetsView from './components/AssetsView';
 import { auth, onAuthStateChanged } from './lib/firebase';
+
+// Lazy-loaded secondary view components for chunk splitting & fast initial render
+const CustomerView = lazy(() => import('./components/CustomerView'));
+const ServicesView = lazy(() => import('./components/ServicesView'));
+const GovernmentServicesView = lazy(() => import('./components/GovernmentServicesView'));
+const PrintingView = lazy(() => import('./components/PrintingView'));
+const ScannerView = lazy(() => import('./components/ScannerView'));
+const DesignStudioView = lazy(() => import('./components/DesignStudioView'));
+const DocumentsView = lazy(() => import('./components/DocumentsView'));
+const FinanceView = lazy(() => import('./components/FinanceView'));
+const ReportsView = lazy(() => import('./components/ReportsView'));
+const StaffView = lazy(() => import('./components/StaffView'));
+const NotificationsView = lazy(() => import('./components/NotificationsView'));
+const SettingsView = lazy(() => import('./components/SettingsView'));
+const ChatView = lazy(() => import('./components/ChatView'));
+const WritingView = lazy(() => import('./components/WritingView'));
+const ImageView = lazy(() => import('./components/ImageView'));
+const AudioView = lazy(() => import('./components/AudioView'));
+const VideoView = lazy(() => import('./components/VideoView'));
+const DocsView = lazy(() => import('./components/DocsView'));
+const CodeView = lazy(() => import('./components/CodeView'));
+const SearchEngineView = lazy(() => import('./components/SearchEngineView'));
+const HelpFaqView = lazy(() => import('./components/HelpFaqView'));
+const CyberAgentView = lazy(() => import('./components/CyberAgentView'));
+const AssetsView = lazy(() => import('./components/AssetsView'));
+
+function ViewLoader() {
+  return (
+    <div className="min-h-[400px] flex items-center justify-center p-8">
+      <div className="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+}
 
 export default function App() {
   const store = useAppStore();
@@ -231,11 +241,12 @@ export default function App() {
             onMenuClick={() => setIsMobileSidebarOpen(true)}
           />
           <div className="flex-1 overflow-hidden">
-            {renderContent()}
+            <Suspense fallback={<ViewLoader />}>
+              {renderContent()}
+            </Suspense>
           </div>
         </div>
       </div>
     </ThemeProvider>
   );
 }
-
