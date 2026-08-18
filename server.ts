@@ -4,9 +4,6 @@ import dns from "dns";
 import https from "https";
 import http from "http";
 import fs from "fs";
-import ytdl from "@distube/ytdl-core";
-import YouTube from "youtube-sr";
-import * as cheerio from "cheerio";
 import { GoogleGenAI } from "@google/genai";
 import Groq from "groq-sdk";
 import { exec } from "child_process";
@@ -15,6 +12,20 @@ import agentRouter from "./src/server/agent";
 import pdfAiRouter from "./src/server/pdf-ai";
 
 const execAsync = promisify(exec);
+
+async function getYtdl() {
+  const mod = await import("@distube/ytdl-core");
+  return mod.default || mod;
+}
+
+async function getYouTube() {
+  const mod = await import("youtube-sr");
+  return mod.default || mod;
+}
+
+async function getCheerio() {
+  return await import("cheerio");
+}
 
 // --- Anti-Detection / Scraping Modules (User Request Alignment) ---
 const USER_AGENTS = [
@@ -327,6 +338,7 @@ async function startServer() {
       console.log(
         `[YouTube Scraper Search] Secondary attempt using youtube-sr: ${query}`,
       );
+      const YouTube = await getYouTube();
       const yt = (YouTube as any).default || YouTube;
       const searchResults = await yt.search(query, {
         limit: 15,
@@ -602,6 +614,18 @@ async function startServer() {
       expiresAt: number;
     }
   >();
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of extractionCache.entries()) {
+      if (value.expiresAt < now) {
+        extractionCache.delete(key);
+      }
+    }
+    if (extractionCache.size > 500) {
+      const keysToDelete = Array.from(extractionCache.keys()).slice(0, 100);
+      keysToDelete.forEach((k) => extractionCache.delete(k));
+    }
+  }, 1000 * 60 * 15);
 
   // Simple in-memory proxy pool for yt-dlp (populated via env, or default fallbacks)
   const proxyPoolStr = process.env.PROXY_POOL || "";
@@ -1482,6 +1506,7 @@ async function startServer() {
         console.log(
           `[Unified Media Extractor] Fallback: @distube/ytdl-core for URL: ${url}`,
         );
+        const ytdl = await getYtdl();
         const data = await ytdl.getInfo(url);
         if (
           data &&
@@ -2130,6 +2155,7 @@ async function startServer() {
         console.log(
           `[Media Stream Proxy] All public nodes exhausted. Running last-resort native @distube/ytdl-core (mode: ${isVideo ? "video" : "audio"})...`,
         );
+        const ytdl = await getYtdl();
         const stream = ytdl(url, {
           filter: isVideo ? "videoandaudio" : "audioonly",
           quality: isVideo ? "highestvideo" : "highestaudio",
@@ -2180,6 +2206,7 @@ async function startServer() {
       console.log(
         `[ytdl-core Native] Fetching info for url: ${url} using @distube/ytdl-core`,
       );
+      const ytdl = await getYtdl();
       const info = await ytdl.getInfo(url);
 
       // Process formats to include local proxied streaming links to ensure compatibility
@@ -2411,6 +2438,7 @@ async function startServer() {
       await page.goto(siteUrl, { waitUntil: "networkidle2", timeout: 30000 });
 
       const html = await page.content();
+      const cheerio = await getCheerio();
       const $ = cheerio.load(html);
       const pdfResults: any[] = [];
       const keywords = [
