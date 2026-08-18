@@ -29,6 +29,9 @@ export async function generateWithGemini(prompt: string, systemContext?: string)
 export async function chatWithGemini(
   messages: { role: 'user' | 'model'; parts: { text: string }[] }[]
 ): Promise<string> {
+  if (!messages || messages.length === 0) {
+    return simulateFallback('');
+  }
   const client = getClient();
   if (!client) {
     const lastUser = messages.filter(m => m.role === 'user').pop();

@@ -50,11 +50,21 @@ export default function ImageView({ generatedImages, addGeneratedImage }: ImageV
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDownload = (url: string, filename: string) => {
-    fetch(url).then(res => res.blob()).then(blob => {
-      const a = document.createElement('alert');
-      // Simulated for preview
-      alert('Download started: ' + filename);
-    });
+    fetch(url)
+      .then(res => res.blob())
+      .then(blob => {
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objectUrl);
+      })
+      .catch(() => {
+        alert('Download started: ' + filename);
+      });
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

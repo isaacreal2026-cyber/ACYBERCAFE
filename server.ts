@@ -276,7 +276,7 @@ async function startServer() {
           .status(502)
           .json({ error: "Invalid response from Internet Archive" });
       }
-      res.json(data);
+      return res.json(data);
     } catch (error) {
       console.error("[IA Proxy Error]", error);
       res.status(500).json({ error: "Failed to fetch from Internet Archive" });
@@ -2193,7 +2193,7 @@ async function startServer() {
         return f;
       });
 
-      res.json({
+      return res.json({
         videoDetails: info.videoDetails,
         title: info.videoDetails?.title || "Extracted Video Stream",
         formats,
@@ -2318,7 +2318,7 @@ async function startServer() {
         );
       }
       const data = await response.json();
-      res.json(data);
+      return res.json(data);
     } catch (error: any) {
       console.warn(
         "[yt-dlp Proxy Error/Down]",
