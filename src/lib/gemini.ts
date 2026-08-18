@@ -1,13 +1,13 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 const API_KEY = (import.meta as any).env.VITE_GEMINI_API_KEY || '';
 
-let genAI: GoogleGenerativeAI | null = null;
+let aiClient: GoogleGenAI | null = null;
 
 function getClient() {
   if (!API_KEY) return null;
-  if (!genAI) genAI = new GoogleGenerativeAI(API_KEY);
-  return genAI;
+  if (!aiClient) aiClient = new GoogleGenAI({ apiKey: API_KEY });
+  return aiClient;
 }
 
 export async function generateWithGemini(prompt: string, systemContext?: string): Promise<string> {
@@ -16,10 +16,12 @@ export async function generateWithGemini(prompt: string, systemContext?: string)
     return simulateFallback(prompt);
   }
   try {
-    const model = client.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const fullPrompt = systemContext ? `${systemContext}\n\n${prompt}` : prompt;
-    const result = await model.generateContent(fullPrompt);
-    return result.response.text();
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: fullPrompt,
+    });
+    return response.text || simulateFallback(prompt);
   } catch (err) {
     console.error('Gemini error:', err);
     return simulateFallback(prompt);
@@ -30,24 +32,28 @@ export async function chatWithGemini(
   messages: { role: 'user' | 'model'; parts: { text: string }[] }[]
 ): Promise<string> {
   const client = getClient();
-  if (!client) {
-    const lastUser = messages.filter(m => m.role === 'user').pop();
-    return simulateFallback(lastUser?.parts[0]?.text || '');
+  if (!client || !messages || messages.length === 0) {
+    const lastUser = messages?.filter(m => m.role === 'user').pop();
+    return simulateFallback(lastUser?.parts?.[0]?.text || '');
   }
   try {
-    const model = client.getGenerativeModel({
+    const formattedContents = messages.map(m => ({
+      role: m.role === 'model' ? 'model' : 'user',
+      parts: m.parts.map(p => ({ text: p.text || '' })),
+    }));
+    const response = await client.models.generateContent({
       model: 'gemini-2.5-flash',
-      systemInstruction:
-        'You are a helpful AI assistant for a cyber cafe management platform in Kenya. You assist cyber attendants and customers with various tasks including KRA services, eCitizen, NTSA, CV writing, government applications, and general assistance.',
+      config: {
+        systemInstruction:
+          'You are a helpful AI assistant for a cyber cafe management platform in Kenya. You assist cyber attendants and customers with various tasks including KRA services, eCitizen, NTSA, CV writing, government applications, and general assistance.',
+      },
+      contents: formattedContents as any,
     });
-    const chat = model.startChat({ history: messages.slice(0, -1) });
-    const lastMsg = messages[messages.length - 1];
-    const result = await chat.sendMessage(lastMsg.parts[0].text);
-    return result.response.text();
+    return response.text || simulateFallback(messages[messages.length - 1]?.parts?.[0]?.text || '');
   } catch (err) {
     console.error('Gemini chat error:', err);
     const lastUser = messages.filter(m => m.role === 'user').pop();
-    return simulateFallback(lastUser?.parts[0]?.text || '');
+    return simulateFallback(lastUser?.parts?.[0]?.text || '');
   }
 }
 

@@ -211,41 +211,47 @@ export function useAppStore() {
   }, []);
 
   const addServiceTicket = useCallback((ticket: Omit<ServiceTicket, 'id' | 'ticketNumber' | 'createdAt' | 'updatedAt' | 'queuePosition'>) => {
-    const waitingCount = serviceTickets.filter(t => t.status === 'waiting').length;
-    const newTicket: ServiceTicket = {
-      ...ticket, id: generateId(),
-      ticketNumber: `TK-${String(serviceTickets.length + 1).padStart(3, '0')}`,
-      queuePosition: waitingCount + 1,
-      createdAt: new Date(), updatedAt: new Date(),
-    };
-    setServiceTickets(prev => [newTicket, ...prev]);
+    let createdTicket: ServiceTicket | null = null;
+    setServiceTickets(prev => {
+      const waitingCount = prev.filter(t => t.status === 'waiting').length;
+      createdTicket = {
+        ...ticket, id: generateId(),
+        ticketNumber: `TK-${String(prev.length + 1).padStart(3, '0')}`,
+        queuePosition: waitingCount + 1,
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      return [createdTicket, ...prev];
+    });
     setNotifications(prev => [{
       id: generateId(), title: 'New Service Request',
       message: `${ticket.customerName} - ${ticket.serviceType}`,
       type: 'info', read: false, createdAt: new Date(),
     }, ...prev]);
-    return newTicket;
-  }, [serviceTickets]);
+    return createdTicket!;
+  }, []);
 
   const updateTicketStatus = useCallback((id: string, status: ServiceTicket['status']) => {
-    setServiceTickets(prev => prev.map(t => t.id === id ? { ...t, status, updatedAt: new Date() } : t));
-    if (status === 'completed') {
-      const ticket = serviceTickets.find(t => t.id === id);
-      if (ticket) {
-        const newTx: Transaction = {
-          id: generateId(), type: ticket.serviceType,
-          customerName: ticket.customerName, amount: ticket.amount,
-          paymentMethod: 'cash', createdAt: new Date(),
-        };
-        setTransactions(prev => [newTx, ...prev]);
-        setNotifications(prev => [{
-          id: generateId(), title: 'Service Completed',
-          message: `${ticket.serviceType} for ${ticket.customerName} completed`,
-          type: 'success', read: false, createdAt: new Date(),
-        }, ...prev]);
+    setServiceTickets(prev => {
+      const updated = prev.map(t => t.id === id ? { ...t, status, updatedAt: new Date() } : t);
+      if (status === 'completed') {
+        const ticket = prev.find(t => t.id === id);
+        if (ticket) {
+          const newTx: Transaction = {
+            id: generateId(), type: ticket.serviceType,
+            customerName: ticket.customerName, amount: ticket.amount,
+            paymentMethod: 'cash', createdAt: new Date(),
+          };
+          setTransactions(txs => [newTx, ...txs]);
+          setNotifications(notes => [{
+            id: generateId(), title: 'Service Completed',
+            message: `${ticket.serviceType} for ${ticket.customerName} completed`,
+            type: 'success', read: false, createdAt: new Date(),
+          }, ...notes]);
+        }
       }
-    }
-  }, [serviceTickets]);
+      return updated;
+    });
+  }, []);
 
   const addPrintJob = useCallback((job: Omit<PrintJob, 'id' | 'createdAt' | 'status'>) => {
     const newJob: PrintJob = { ...job, id: generateId(), status: 'queued', createdAt: new Date() };

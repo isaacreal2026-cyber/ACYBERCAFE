@@ -1,35 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { cn } from './utils/cn';
 import { ThemeProvider } from './lib/theme';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
-import CustomerView from './components/CustomerView';
-import ServicesView from './components/ServicesView';
-import GovernmentServicesView from './components/GovernmentServicesView';
-import PrintingView from './components/PrintingView';
-import ScannerView from './components/ScannerView';
-import DesignStudioView from './components/DesignStudioView';
-import DocumentsView from './components/DocumentsView';
-import FinanceView from './components/FinanceView';
-import ReportsView from './components/ReportsView';
-import StaffView from './components/StaffView';
-import NotificationsView from './components/NotificationsView';
-import SettingsView from './components/SettingsView';
-import ChatView from './components/ChatView';
-import WritingView from './components/WritingView';
-import ImageView from './components/ImageView';
-import AudioView from './components/AudioView';
-import VideoView from './components/VideoView';
-import DocsView from './components/DocsView';
-import CodeView from './components/CodeView';
-import SearchEngineView from './components/SearchEngineView';
-import HelpFaqView from './components/HelpFaqView';
-import CyberAgentView from './components/CyberAgentView';
 import AuthView from './components/AuthView';
-import AssetsView from './components/AssetsView';
 import { auth, onAuthStateChanged } from './lib/firebase';
+
+const CustomerView = lazy(() => import('./components/CustomerView'));
+const ServicesView = lazy(() => import('./components/ServicesView'));
+const GovernmentServicesView = lazy(() => import('./components/GovernmentServicesView'));
+const PrintingView = lazy(() => import('./components/PrintingView'));
+const ScannerView = lazy(() => import('./components/ScannerView'));
+const DesignStudioView = lazy(() => import('./components/DesignStudioView'));
+const DocumentsView = lazy(() => import('./components/DocumentsView'));
+const FinanceView = lazy(() => import('./components/FinanceView'));
+const ReportsView = lazy(() => import('./components/ReportsView'));
+const StaffView = lazy(() => import('./components/StaffView'));
+const NotificationsView = lazy(() => import('./components/NotificationsView'));
+const SettingsView = lazy(() => import('./components/SettingsView'));
+const ChatView = lazy(() => import('./components/ChatView'));
+const WritingView = lazy(() => import('./components/WritingView'));
+const ImageView = lazy(() => import('./components/ImageView'));
+const AudioView = lazy(() => import('./components/AudioView'));
+const VideoView = lazy(() => import('./components/VideoView'));
+const DocsView = lazy(() => import('./components/DocsView'));
+const CodeView = lazy(() => import('./components/CodeView'));
+const SearchEngineView = lazy(() => import('./components/SearchEngineView'));
+const HelpFaqView = lazy(() => import('./components/HelpFaqView'));
+const CyberAgentView = lazy(() => import('./components/CyberAgentView'));
+const AssetsView = lazy(() => import('./components/AssetsView'));
+
+function ViewLoader() {
+  return (
+    <div className="h-full w-full flex items-center justify-center bg-[var(--color-surface-bg)]">
+      <div className="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+}
 
 export default function App() {
   const store = useAppStore();
@@ -50,9 +59,11 @@ export default function App() {
   }, [store.login, store.logout]);
 
   if (isAuthChecking) {
-    return <div className="min-h-screen bg-[var(--color-surface-bg)] flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
-    </div>;
+    return (
+      <div className="min-h-screen bg-[var(--color-surface-bg)] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
   if (!store.isAuthenticated) {
@@ -181,21 +192,25 @@ export default function App() {
       <div className="flex h-screen bg-[var(--color-surface-bg)] overflow-hidden relative text-[var(--color-text-primary)]">
         {/* Sidebar Backdrop Overlay on mobile/tablet */}
         {isMobileSidebarOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 lg:hidden transition-all duration-300"
             onClick={() => setIsMobileSidebarOpen(false)}
           />
         )}
-        
+
         {/* Sidebar Navigation Frame */}
-        <div className={cn(
-          "flex-shrink-0 z-50 transition-transform lg:transition-all duration-300 bg-[var(--color-surface-card)] border-r border-gray-200",
-          // Desktop positioning & dimensions
-          store.isSidebarCollapsed ? "lg:w-14" : "lg:w-64",
-          // Mobile positioning (drawer slide-over style with relative/absolute overlay rules)
-          "fixed inset-y-0 left-0 lg:static lg:translate-x-0 h-full",
-          isMobileSidebarOpen ? "translate-x-0 shadow-2xl shadow-brand-accent/10" : "-translate-x-full"
-        )}>
+        <div
+          className={cn(
+            'flex-shrink-0 z-50 transition-transform lg:transition-all duration-300 bg-[var(--color-surface-card)] border-r border-gray-200',
+            // Desktop positioning & dimensions
+            store.isSidebarCollapsed ? 'lg:w-14' : 'lg:w-64',
+            // Mobile positioning (drawer slide-over style with relative/absolute overlay rules)
+            'fixed inset-y-0 left-0 lg:static lg:translate-x-0 h-full',
+            isMobileSidebarOpen
+              ? 'translate-x-0 shadow-2xl shadow-brand-accent/10'
+              : '-translate-x-full'
+          )}
+        >
           <Sidebar
             activeCategory={store.activeCategory}
             setActiveCategory={(cat) => {
@@ -231,11 +246,10 @@ export default function App() {
             onMenuClick={() => setIsMobileSidebarOpen(true)}
           />
           <div className="flex-1 overflow-hidden">
-            {renderContent()}
+            <Suspense fallback={<ViewLoader />}>{renderContent()}</Suspense>
           </div>
         </div>
       </div>
     </ThemeProvider>
   );
 }
-
