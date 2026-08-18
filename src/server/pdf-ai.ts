@@ -78,6 +78,9 @@ router.post("/edit", upload.single("file"), async (req, res) => {
     }
 
     if (!searchText || !replaceText) {
+      if (file?.path && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
       return res
         .status(400)
         .json({ error: "searchText and replaceText are required" });

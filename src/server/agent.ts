@@ -23,6 +23,9 @@ router.post('/process', upload.single('file'), async (req, res) => {
     const file = req.file;
 
     if (!process.env.GEMINI_API_KEY) {
+      if (file?.path && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
       return res.status(500).json({ error: "GEMINI_API_KEY is missing." });
     }
 
@@ -63,6 +66,9 @@ router.post('/process', upload.single('file'), async (req, res) => {
 
       } catch (err: any) {
         console.error('[Agent] sharp error:', err);
+        if (file?.path && fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
         return res.status(500).json({ error: "Failed to process photo: " + err.message });
       }
     } 
@@ -166,14 +172,17 @@ CODE REQUIREMENTS (if needsInfo is false):
       fs.unlinkSync(file.path);
     }
 
-    res.json({
+    return res.json({
       text: textResponse,
       fileUrl: generatedFileUrl
     });
 
   } catch (err: any) {
     console.error("[Agent Error]", err);
-    res.status(500).json({ error: err.message || "Internal server error" });
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    return res.status(500).json({ error: err.message || "Internal server error" });
   }
 });
 
