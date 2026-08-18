@@ -1,66 +1,67 @@
 # CyberPlus Operations Center - Comprehensive Reliability & Resilience Audit
 
-This report evaluates the **CyberPlus Operations Center** platform's reliability under the 11 key criteria specified in the audit directives. For each category, we analyze identified weaknesses across the frontend, backend, state managers, and communication boundaries, and detail **safe, non-disruptive mitigation strategies** that preserve existing behaviors, APIs, and routing.
+This report evaluates the **CyberPlus Operations Center** platform's reliability under the 11 key criteria specified in the audit directives. For each category, we analyze identified weaknesses across the frontend, backend, state managers, and communication boundaries, and detail **safe, non-disruptive mitigation strategies** that preserve existing behaviors, APIs, database/state schemas, and routing.
 
 ---
 
 ## 1. Crash Recovery
 
 ### Findings & Weaknesses
-* **Uncaught Exceptions & Unhandled Rejections:** The Node/Express backend (`server.ts`) lacks top-level event handlers for `process.on('uncaughtException')` and `process.on('unhandledRejection')`. If any asynchronous routine or third-party client (e.g., Gemini, Groq, Puppeteer, `@distube/ytdl-core`) throws an unhandled error inside a promise chain, the process can crash or leak resources without gracefully closing ports, handles, or database/file descriptors.
-* **Lack of Automatic Process Monitor Configuration:** While the environment might run in a container, there is no explicit system configuration or supervisor daemon behavior declared inside the repo to restart the process gracefully upon crash (like a default `PM2` ecosystem config or custom node script).
-* **Process Exit Code Safeguards:** Under unhandled failure states, Node.js defaults to exiting immediately. This can disrupt concurrent users mid-request if some threads encounter a fatal issue.
+* **Uncaught Exceptions & Unhandled Rejections:** The Express backend (`server.ts`) lacks top-level event listeners for `process.on('uncaughtException')` and `process.on('unhandledRejection')`. If any asynchronous routine or third-party SDK (e.g., Gemini `@google/genai`, Groq, Puppeteer, or `@distube/ytdl-core`) throws an unhandled error inside an async promise or background stream, the process can crash or leak open handles without gracefully closing listening ports or cleaning up temporary files in `/tmp`.
+* **Subprocess & Worker Termination:** When child processes or Puppeteer browser instances crash or freeze (such as in `/api/scrape-exams` or `/api/agent/process`), there is no process supervisor or worker pool monitoring to clean up orphaned Chrome processes or handle process restart signals.
+* **Process Exit Code Safeguards:** Under unhandled fatal states, Node.js defaults to exiting or remaining in an unpredictable state. This can disrupt concurrent users mid-request.
 
 ### Safe Implementation Strategy
-* **Top-Level Event Listeners:** Add non-disruptive shutdown listeners in `server.ts` to log fatal errors, clean up pending file resources (such as active `/tmp/agent_uploads` or `/tmp/yt-dlp` instances), and exit gracefully with code `1`:
+* **Top-Level Event Listeners in `server.ts`:** Add non-disruptive global error event handlers in `server.ts` to log fatal errors, clean up pending file resources (such as active `/tmp/agent_uploads` or `/tmp/yt-dlp` instances), and log errors without crashing on soft rejections:
   ```typescript
   process.on('uncaughtException', (error) => {
     console.error('[CRITICAL] Uncaught Exception:', error);
-    // Graceful cleanup hook here
-    process.exit(1);
   });
-  process.on('unhandledRejection', (reason, promise) => {
-    console.error('[CRITICAL] Unhandled Promise Rejection at:', promise, 'reason:', reason);
+  process.on('unhandledRejection', (reason) => {
+    console.error('[CRITICAL] Unhandled Promise Rejection:', reason);
   });
   ```
-* **Production Supervisor File:** Include a lightweight `ecosystem.config.js` or `nodemon.json` configuration mapping to handle automated recovery during local testing and deployment, avoiding direct container-orchestration dependencies.
+* **Production Process Supervisor:** Provide a standard process manager configuration (`ecosystem.config.js` or `nodemon.json`) for automatic process restarts with zero-downtime reloads.
 
 ---
 
 ## 2. Retries
 
 ### Findings & Weaknesses
-* **Single-Attempt Fetch/API Requests:** Most internal proxies and LLM routes (e.g., Internet Archive Advanced Search proxy `/api/ia-search`, Pollinations AI Flux generation `/api/generate`, and PDF generation/editing `/api/pdf-ai/*`) operate on a single-attempt execution logic. If the upstream server experiences a brief 5xx error or connection reset, the transaction fails immediately and returns a `500` or `502` error to the frontend.
-* **No Exponential Backoff:** The fallback mechanisms in `server.ts` for YouTube streaming nodes (e.g., Cobalt, Piped, Invidious) race through instances, but do not feature any stateful retrying or exponential backoff mechanism on individual healthy nodes.
+* **Single-Attempt Fetch/API Requests:** Internal API endpoints (e.g., Internet Archive Advanced Search proxy `/api/ia-search`, Pollinations AI Flux generation `/api/generate`, and PDF processing `/api/pdf-ai/*`) execute native `fetch` requests with single-attempt execution logic. If the upstream provider encounters a brief 5xx error, rate limit, or connection reset, the transaction fails immediately and returns a `500` or `502` error to the frontend.
+* **No Jittered Exponential Backoff:** Although the fallback mechanisms in `server.ts` for YouTube streaming nodes (Cobalt, Piped, Invidious) race through instances, individual nodes do not feature any stateful retrying with exponential backoff and jitter.
 
 ### Safe Implementation Strategy
-* **Robust Request Wrapper with Exponential Backoff:** Introduce a utility wrapper for critical network requests utilizing a standard jittered exponential backoff pattern:
+* **Robust Request Wrapper with Exponential Backoff:** Introduce a lightweight helper function for outbound HTTP requests with configurable retries, exponential backoff, and randomized jitter:
   ```typescript
-  async function fetchWithRetry(url: string, options: RequestInit, retries = 3, delay = 1000) {
+  async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, baseDelay = 1000): Promise<Response> {
     for (let i = 0; i < retries; i++) {
       try {
         const response = await fetch(url, options);
-        if (response.ok) return response;
-        if (response.status < 500 && response.status !== 429) return response; // Don't retry client errors
+        if (response.ok || (response.status >= 400 && response.status < 500 && response.status !== 429)) {
+          return response;
+        }
       } catch (err) {
         if (i === retries - 1) throw err;
       }
-      await new Promise(res => setTimeout(res, delay * Math.pow(2, i) + Math.random() * 200));
+      const delay = baseDelay * Math.pow(2, i) + Math.random() * 200;
+      await new Promise((res) => setTimeout(res, delay));
     }
+    return fetch(url, options);
   }
   ```
-  This is fully backwards compatible and can replace direct `fetch` calls without altering route definitions or response structures.
+  This is backwards compatible and preserves all existing route definitions and response structures.
 
 ---
 
 ## 3. Timeout Handling
 
 ### Findings & Weaknesses
-* **Infinite/Default Fetch Hangups:** Node's native `fetch` API does not enforce an automatic timeout by default. This means connections to external APIs (like OpenRouter, Google Gemini, or Puppeteer scraper sites) can hang indefinitely if the remote server establishes a socket connection but refuses to transmit bytes.
-* **Uncapped Subprocess Executions:** The PDF Scraper (`/api/scrape-exams`), PDF editor `/api/edit`, and Agent process executor (`/api/agent/process`) rely on Puppeteer launch scripts, `execAsync`, and external library parses. If Puppeteer hangs during a headless browser session or if a generated script in the agent loop blocks indefinitely, it will freeze the corresponding request handler and exhaust the server's thread pool.
+* **Uncapped Native `fetch` Calls:** Node's native `fetch` API does not enforce an automatic timeout by default. Calls to external APIs (OpenRouter, Google Gemini, Groq, or external PDF sources) can hang indefinitely if the target server accepts socket connections but fails to respond.
+* **Uncapped Subprocess Executions:** Subprocess executions in `/api/git` (`execAsync`), Puppeteer browser page navigations in `/api/scrape-exams` (which has a 30s timeout but no overall script execution limit), and AI Agent script executions (`/api/agent/process`) can stall under specific edge cases, consuming thread pool capacity.
 
 ### Safe Implementation Strategy
-* **Strict Timeout Enforcements:** Always pass an `AbortController` signal to outbound `fetch` requests (defaulting to 15s or 30s):
+* **Strict Timeout Enforcement via `AbortController`:** Wrap outbound network requests in `AbortController` signals defaulting to reasonable timeouts (e.g., 10–15 seconds):
   ```typescript
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -70,65 +71,68 @@ This report evaluates the **CyberPlus Operations Center** platform's reliability
     clearTimeout(timeoutId);
   }
   ```
-* **Enforced Exec Limits:** Ensure all `exec` and `execAsync` blocks declare an explicit `timeout` in their options object (e.g., `{ timeout: 15000 }`), which is already partially used in some yt-dlp paths but missing in others.
+* **Enforced Exec Limits:** Guarantee that all `exec` and `execAsync` calls declare an explicit `timeout` option (e.g., `{ timeout: 15000 }`), preventing lingering subprocesses.
 
 ---
 
 ## 4. Offline Behavior
 
 ### Findings & Weaknesses
-* **Monolithic Local App State Volatility:** The custom state hook in `src/store/useAppStore.ts` stores customer lists, service tickets, print jobs, notifications, and document indices purely in-memory. If a user loses internet connectivity, gets logged out, or manually reloads the browser, the entire application state resets to the mock samples.
-* **No Network Connection Status Detection:** The frontend UI does not monitor or display offline status. If a user fills out customer details, creates an eCitizen service ticket, or triggers an agent workflow while offline, the app silently makes failing API calls and displays confusing loading animations or uncaught network crash warnings.
-* **No Offline Queueing / Optimistic Sync:** Customer creations or print job submissions are not queued locally when the device is disconnected.
+* **In-Memory State Volatility:** The custom state store in `src/store/useAppStore.ts` stores customer lists, service tickets, print jobs, notifications, and transactions purely in React component state. If a user loses connectivity, gets logged out, or refreshes the page, custom data resets to the initial mock datasets.
+* **No Network Connection Indicator:** The frontend UI does not detect offline status (`window.navigator.onLine`). Triggering AI generation, scraping, or saving tickets while offline leads to unhandled network errors and missing loading feedback.
+* **Lack of Request Queueing:** Offline submissions are not cached or queued for retry when connectivity is restored.
 
 ### Safe Implementation Strategy
-* **Synchronous Connection Status Banner:** Implement a global network listener in `App.tsx` using `window.navigator.onLine` to display a subtle, non-intrusive "Offline Mode" warning indicator.
-* **Persistent Cache Fallback (localStorage):** Modify `useAppStore.ts` to seamlessly initialize and persist custom data collections (e.g., `customers`, `serviceTickets`, `printJobs`) to/from browser `localStorage`. This ensures zero data loss upon page reloads:
+* **Global Network Status Hook & Indicator:** Implement a `useNetworkStatus` hook or global listener in `App.tsx` checking `navigator.onLine`, displaying a unobtrusive top notification banner when offline.
+* **Local Storage Persistence Fallback:** Add persistent local caching to `useAppStore.ts` so custom entities (e.g., added customers, created service tickets, print jobs) are restored from `localStorage` on page reload:
   ```typescript
   const [customers, setCustomers] = useState<Customer[]>(() => {
-    const cached = localStorage.getItem('cyberplus_customers');
-    return cached ? JSON.parse(cached) : SAMPLE_CUSTOMERS;
+    try {
+      const saved = localStorage.getItem('cyberplus_customers');
+      return saved ? JSON.parse(saved) : INITIAL_CUSTOMERS;
+    } catch {
+      return INITIAL_CUSTOMERS;
+    }
   });
-  // Inside state updates:
-  useEffect(() => {
-    localStorage.setItem('cyberplus_customers', JSON.stringify(customers));
-  }, [customers]);
   ```
-* **Offline Rollback Actions:** Ensure state updates roll back cleanly if an asynchronous API transaction fails due to offline state.
+* **Optimistic Rollback Handling:** Standardize state update actions so that failed asynchronous API calls roll back local state gracefully and alert the user.
 
 ---
 
 ## 5. Error Boundaries
 
 ### Findings & Weaknesses
-* **No React Error Boundaries:** There are no Error Boundaries declared in `src/main.tsx` or `src/App.tsx`. If any minor sub-component (such as `CyberAgentView`, `ChatView`, `DashboardView`, or the custom markdown renderer) encounters an uncaught runtime error (e.g., trying to read a property of `undefined` due to unexpected API response layout), the entire React tree unmounts. This results in a blank white screen, forcing users to refresh and lose all volatile state.
+* **Missing React Error Boundaries:** `src/main.tsx` and `src/App.tsx` lack React Error Boundaries. If any view (e.g., `CyberAgentView`, `ChatView`, `DashboardView`, `DesignStudioView`) throws an uncaught rendering error or encounters malformed prop data, the entire React component tree unmounts, presenting a blank screen and losing unpersisted session state.
 
 ### Safe Implementation Strategy
-* **Granular Component-Level Error Boundaries:** Implement a standard React `ErrorBoundary` component and wrap each view inside `App.tsx`'s `renderContent()` switcher, as well as wrapping the entire app in a top-level global handler:
-  ```typescript
-  import React, { Component, ErrorInfo, ReactNode } from "react";
+* **Granular React Error Boundary Component:** Implement a modular `SafeErrorBoundary` component and wrap each individual view inside `App.tsx`'s `renderContent()` switcher, as well as wrapping the root app component:
+  ```tsx
+  import React, { Component, ErrorInfo, ReactNode } from 'react';
 
   interface Props { children: ReactNode; fallback?: ReactNode; }
-  interface State { hasError: boolean; }
+  interface State { hasError: boolean; error?: Error; }
 
   export class SafeErrorBoundary extends Component<Props, State> {
     public state: State = { hasError: false };
 
-    public static getDerivedStateFromError(_: Error): State {
-      return { hasError: true };
+    public static getDerivedStateFromError(error: Error): State {
+      return { hasError: true, error };
     }
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-      console.error("Uncaught component error:", error, errorInfo);
+      console.error('ErrorBoundary caught error:', error, errorInfo);
     }
 
     public render() {
       if (this.state.hasError) {
         return this.props.fallback || (
           <div className="p-6 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl m-4 text-center">
-            <h3 className="font-semibold text-sm">Something went wrong rendering this component.</h3>
-            <button className="mt-2 text-xs bg-red-500 text-white px-3 py-1.5 rounded" onClick={() => this.setState({ hasError: false })}>
-              Try Again
+            <h3 className="font-semibold text-sm">Something went wrong in this section.</h3>
+            <button
+              className="mt-3 text-xs bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 transition"
+              onClick={() => this.setState({ hasError: false })}
+            >
+              Reload Section
             </button>
           </div>
         );
@@ -137,23 +141,22 @@ This report evaluates the **CyberPlus Operations Center** platform's reliability
     }
   }
   ```
-  Wrap views like `<SafeErrorBoundary><CyberAgentView /></SafeErrorBoundary>` safely.
 
 ---
 
 ## 6. Null Handling
 
 ### Findings & Weaknesses
-* **Implicit Response Properties Access:** Frontend views and asynchronous actions frequently access deep object properties from API responses without defensive guards (optional chaining `?.`). For instance, parsing results in `CyberAgentView.tsx` with `data.fileUrl` or markdown formatting logic inside `ChatView.tsx` with `msg.parts[0]?.text` lacks safety assertions.
-* **Mock Auth Verification Bypasses:** Some state values in `useAppStore.ts` assume objects like `user` or `activeConversation` are always defined. If `activeConversation` is not found, calling `activeConversation.messages` will instantly crash the app.
+* **Unchecked Object Property Access:** Deep property accesses in API handlers and UI render loops (e.g., `activeConversation.messages`, `result.choices[0].message.content`, `data.videoDetails.title`) occasionally lack defensive optional chaining (`?.`) or default fallbacks.
+* **Missing Payload Schema Validations:** When parsing third-party JSON responses (from Internet Archive, OpenRouter, YouTube scrapers, or Gemini API), the backend assumes property existence without type-guard assertions.
 
 ### Safe Implementation Strategy
-* **Strict Optional Chaining Rules:** Standardize on safe, defensive optional chaining (`?.`) and fallback defaults (`|| []`, `|| ""`) across all views.
-* **Strict Type Guards:** Write standard type guards for API payload responses before mapping them to React state:
+* **Defensive Optional Chaining & Default Fallbacks:** Enforce optional chaining (`?.`) and explicit default fallbacks (`|| []`, `|| ''`, `|| {}`) across all async handlers and React views.
+* **Runtime Type Guards:** Implement lightweight validation helpers for third-party API payloads before processing them:
   ```typescript
-  const isValidMediaResponse = (data: any): data is { success: boolean; videoPreviewUrl: string } => {
-    return data && typeof data === 'object' && 'success' in data && typeof data.success === 'boolean';
-  };
+  function isObject(val: unknown): val is Record<string, any> {
+    return typeof val === 'object' && val !== null;
+  }
   ```
 
 ---
@@ -161,22 +164,21 @@ This report evaluates the **CyberPlus Operations Center** platform's reliability
 ## 7. Exception Safety
 
 ### Findings & Weaknesses
-* **Early Return Temporary File Leaks:** In `/process` inside `src/server/agent.ts`, if the API request throws an exception before reaching the `try...finally` cleanup blocks (such as a missing `process.env.GEMINI_API_KEY` return, or if sharp crashes during execution), the temporary file created in `/tmp/agent_uploads` is leaked and never unlinked. This will rapidly exhaust disk space (especially under server stress testing or CI runs).
-* **Missing Error Boundaries in Subprocesses:** In `/edit` inside `src/server/pdf-ai.ts`, if OpenAI returns a malformed structure or Puppeteer fails to compile the HTML layout, the uploaded file in `uploads/` will leak on disk if the initial validations failed before the try block.
+* **Early Return Resource Leaks in File Upload Routes:** In `/process` inside `src/server/agent.ts`, if an early error occurs (e.g., missing `process.env.GEMINI_API_KEY` or invalid task parameter), the uploaded file in `/tmp/agent_uploads/` is not unlinked because the cleanup statement is located at the bottom of the handler rather than inside a `finally` block.
+* **Subprocess Cleanups on Error:** In `/api/scrape-exams`, if an error occurs during page processing, `browser.close()` is in a `finally` block (which is good), but temporary files created during PDF manipulation in `/api/pdf-ai/edit` could linger if validation fails prior to execution.
 
 ### Safe Implementation Strategy
-* **Immediate Cleanup Hooks:** Wrap the file upload processing in an outer `try...finally` block that immediately executes the cleanup of `req.file` the moment any error occurs, ensuring file unlinking is 100% guaranteed:
+* **Guaranteed `try ... finally` Cleanup Blocks:** Enclose file upload handlers in outer `try ... finally` blocks to ensure temporary uploaded files are unlinked immediately regardless of execution path or early returns:
   ```typescript
   router.post('/process', upload.single('file'), async (req, res) => {
     const file = req.file;
     try {
-      // Proceed with execution logic
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Operation failed" });
+      // Execute logic
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Internal server error' });
     } finally {
       if (file && fs.existsSync(file.path)) {
-        try { fs.unlinkSync(file.path); } catch (e) {}
+        try { fs.unlinkSync(file.path); } catch {}
       }
     }
   });
@@ -187,92 +189,95 @@ This report evaluates the **CyberPlus Operations Center** platform's reliability
 ## 8. API Failures
 
 ### Findings & Weaknesses
-* **No Standardized JSON Error Payload Handlers:** The backend relies heavily on heterogeneous error responses. Some routes return plaintext, some return `{ error: string }`, while others send back status code `500` with direct stack details. This makes the frontend parser fragile when handling errors, occasionally trying to parse raw HTML stack traces as JSON.
-* **Fallback Cascading Failures:** When public nodes (e.g., Cobalt, Piped, Invidious) fail, the sequential fallback logic inside `server.ts` catches the error but still hits subsequent APIs sequentially. This can cause latency accumulation up to 30 seconds before returning a failure, blocking the client connection.
+* **Inconsistent Error Response Structures:** Server endpoints return heterogeneous error formats across different routes—some return `{ error: string }`, others `{ success: false, error: string }`, and streaming routes return plaintext status messages. This forces client callers to handle multiple error formats.
+* **Accumulated Latency on Sequential Fallbacks:** Sequential fallback chains (e.g., testing multiple Piped or Invidious instances sequentially when Cobalt fails) can accumulate up to 15–30 seconds of response latency before returning an error to the client.
 
 ### Safe Implementation Strategy
-* **Centralized Express Error Handler Middleware:** Register a global Express error-handling middleware that guarantees clean, standardized JSON payloads to the frontend:
+* **Centralized Express Error Handling Middleware:** Implement a standard Express error handler that normalizes all error responses into a consistent JSON layout:
   ```typescript
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error('[ROUTE ERROR]', err);
-    res.status(err.status || 500).json({
-      success: false,
-      error: err.message || 'Internal Server Error'
-    });
+    console.error('[Unhandled Route Error]', err);
+    if (!res.headersSent) {
+      res.status(err.status || 500).json({
+        success: false,
+        error: err.message || 'Internal Server Error'
+      });
+    }
   });
   ```
-* **Strict Timeout Jitter for Fallbacks:** Reduce individual fallback timeouts to max 3 seconds per node, preventing total latency summation from exhausting Express connection limits.
+* **Strict Per-Node Fallback Timeouts:** Keep per-node timeout limits low (e.g., 1.5–2 seconds per node) or utilize parallel racing (`Promise.any` / `raceAll`) to minimize user-perceived latency.
 
 ---
 
 ## 9. Network Interruptions
 
 ### Findings & Weaknesses
-* **Hanging Socket Streams:** The progressive download proxy `/api/yt/stream` pipes third-party video streams to HTML5 media elements. If the user disconnects, closes their tab, or has a packet loss event, the upstream request can hang indefinitely because of partial read states or missing socket closed checks.
-* **File Upload Interruption Corruption:** If a user’s internet drops while uploading a large PDF for extraction (`/api/pdf-extract`) or agent processing, Express/Multer will receive a truncated file. The parser will attempt to read the partial/corrupt PDF, leading to internal extraction tool crashes.
+* **Orphaned Upstream Streaming Sockets:** The media streaming proxy `/api/yt/stream` pipes remote media streams to client browsers. If a client disconnects, closes their tab, or seeks back and forth rapidly, the upstream HTTP request to the CDN might continue downloading unless explicitly destroyed.
+* **Truncated Upload Handling:** Interrupted file uploads through Multer can leave partial files on disk or cause parsers (`pdf-parse`, `sharp`) to throw unhandled exceptions when attempting to process truncated files.
 
 ### Safe Implementation Strategy
-* **Add Resilient Event Listeners on Stream Pipe:** Ensure close events on response socket completely destroy the upstream request object in `server.ts`'s streaming logic:
+* **Stream Socket Close Listeners:** Ensure `res.on('close')` event handlers explicitly destroy both client and upstream remote request sockets:
   ```typescript
   res.on('close', () => {
-    if (activeRemoteRes) activeRemoteRes.destroy();
-    req.destroy();
+    if (activeRemoteRes) try { activeRemoteRes.destroy(); } catch {}
+    try { req.destroy(); } catch {}
   });
   ```
-* **Integrate Header/Length Assertions:** Verify `Content-Length` matches the size of uploaded temporary files before feeding them into complex parsing packages like `pdf-parse` or `sharp`.
+* **Upload Integrity Checks:** Check file size and verify header bytes before passing uploaded buffers to parser libraries like `pdf-parse` or `sharp`.
 
 ---
 
 ## 10. Corrupted Data
 
 ### Findings & Weaknesses
-* **Fragile Caveman Clipboard Parser Regex:** The parser helper in `src/lib/caveman.ts` uses highly strict regex statements to capture entities (e.g., KRA PIN, National ID, amounts, phone numbers). If a user inputs malformed or partially corrupt text, the regexes can return invalid data blocks or capture partial segments that violate application schemas, causing subsequent crashes on views.
-* **JSON Parsing Inside Async Handlers:** Routes like `/api/ia-search` and `/api/agent/process` parse JSON strings returned from external systems. If the external response is truncated or corrupted, calling `JSON.parse` will throw a syntax exception that can derail execution if uncaught.
+* **Regex Parsing Rigidity:** Utility functions (such as clipboard/text extraction in `src/lib/caveman.ts`) rely on strict regular expressions. Malformed or unexpectedly formatted inputs can lead to empty or truncated extractions.
+* **Raw `JSON.parse` Calls:** Occurrences of `JSON.parse` on external API responses or agent script outputs can throw uncaught `SyntaxError` exceptions if the external payload is truncated or invalid.
 
 ### Safe Implementation Strategy
-* **Defensive Parsing Wrappers:** Use a safe parsing wrapper everywhere:
+* **Safe JSON Parsing Helper:** Wrap all `JSON.parse` operations in a safe helper:
   ```typescript
-  function safeJSONParse<T>(jsonStr: string, fallback: T): T {
+  function safeJSONParse<T>(input: string, fallback: T): T {
     try {
-      return JSON.parse(jsonStr) as T;
+      return JSON.parse(input) as T;
     } catch {
       return fallback;
     }
   }
   ```
-* **Schema Validation via Lightweight Schemas:** Validate all incoming payloads against schemas before saving them into the app stores or system states.
+* **Input Sanitization & Schema Defaults:** Sanitize and validate extracted entity strings before storing them in state.
 
 ---
 
 ## 11. Concurrent Users
 
 ### Findings & Weaknesses
-* **In-Memory Volatile Store Race Conditions:** Global Maps like `extractionCache`, `pdfExtractionCache`, `offlineInstances`, and `extractRateLimits` are declared as static standard JavaScript Maps in `server.ts`. Under high concurrency, concurrent operations can result in cache key mutations or dirty reads.
-* **No Database/File Lock System:** If multiple users request to process files or download Standalone binary files (`/tmp/yt-dlp`) at the same instant, the server will trigger multiple simultaneous downloads of the exact same executable, overwriting the file and causing execution failures or file-lock panics.
+* **Unbounded In-Memory Map Caches:** Global in-memory caches in `server.ts` (`extractionCache`, `pdfExtractionCache`, `extractRateLimits`, `streamRateLimits`, `offlineInstances`) are standard JavaScript `Map` objects. Under high concurrency and extended uptime, unbounded growth could lead to memory pressure.
+* **Concurrent Binary Download Race Condition:** Simultaneous requests to `/api/media/extract` when `/tmp/yt-dlp` does not exist could trigger concurrent downloads of the same binary executable, causing file lock collisions or corrupt binary downloads.
 
 ### Safe Implementation Strategy
-* **File Locking for Asset Downloads:** Use a directory lock or atomic lock file library (or simple checking of an in-progress flag) to prevent concurrent executions from writing to the same temporary files simultaneously:
+* **Download Concurrency Lock:** Add an in-memory lock flag or promise cache in `ensureLocalYtDlpBinary()` so only one download runs at a time while concurrent callers await its completion:
   ```typescript
-  let isDownloadingYtDlp = false;
-  async function ensureLocalYtDlpBinary() {
-    if (isDownloadingYtDlp) {
-      // Wait or yield to existing download process
-      while (isDownloadingYtDlp) {
-        await new Promise(r => setTimeout(r, 200));
-      }
-      return workingYtDlpCmd;
-    }
-    isDownloadingYtDlp = true;
+  let downloadPromise: Promise<string | null> | null = null;
+
+  async function ensureLocalYtDlpBinary(): Promise<string | null> {
+    if (workingYtDlpCmd) return workingYtDlpCmd;
+    if (downloadPromise) return downloadPromise;
+
+    downloadPromise = (async () => {
+      // Execution logic
+    })();
+
     try {
-      // Proceed with standalone binary download safely
+      return await downloadPromise;
     } finally {
-      isDownloadingYtDlp = false;
+      downloadPromise = null;
     }
   }
   ```
-* **Implement Cache Limits:** Always cap the size of global `Map` objects (e.g., maximum 500 cached entries) to prevent slow memory exhaustion under concurrent spikes.
+* **Cache Eviction & Capacity Bounds:** Implement periodic eviction sweeps and max size limits (e.g., maximum 500 entries) on all global `Map` instances to bound memory usage.
 
 ---
 
-### Conclusion
-By implementing these strategies, the CyberPlus Operations Center will achieve **enterprise-grade reliability and zero data-loss resilience** across both client and server layers, completely independent of external persistent database systems. All suggestions strictly respect existing routing, schemas, and interfaces.
+## Conclusion
+
+The **CyberPlus Operations Center** architecture demonstrates strong modularity and fallback capabilities. Implementing the non-disruptive, safe mitigation strategies detailed above will ensure end-to-end resilience, exception safety, and reliability across all 11 criteria without altering existing routes, schemas, or user workflows.
