@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Search, Music, Video, BookOpen, LayoutDashboard, Loader2, Download, X, AlertCircle } from 'lucide-react';
+import { Search, Music, Video, BookOpen, LayoutDashboard, Loader2, Download, X } from 'lucide-react';
 import { ToolCategory } from '../types';
 
 type SearchTab = 'music' | 'video' | 'pdf' | 'internal';
