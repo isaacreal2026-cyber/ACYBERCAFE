@@ -218,7 +218,7 @@ export function useAppStore() {
       queuePosition: waitingCount + 1,
       createdAt: new Date(), updatedAt: new Date(),
     };
-    setServiceTickets(prev => [newTicket, ...prev]);
+    setServiceTickets(prev => [...prev, newTicket]);
     setNotifications(prev => [{
       id: generateId(), title: 'New Service Request',
       message: `${ticket.customerName} - ${ticket.serviceType}`,
@@ -228,22 +228,20 @@ export function useAppStore() {
   }, [serviceTickets]);
 
   const updateTicketStatus = useCallback((id: string, status: ServiceTicket['status']) => {
+    const ticket = serviceTickets.find(t => t.id === id);
     setServiceTickets(prev => prev.map(t => t.id === id ? { ...t, status, updatedAt: new Date() } : t));
-    if (status === 'completed') {
-      const ticket = serviceTickets.find(t => t.id === id);
-      if (ticket) {
-        const newTx: Transaction = {
-          id: generateId(), type: ticket.serviceType,
-          customerName: ticket.customerName, amount: ticket.amount,
-          paymentMethod: 'cash', createdAt: new Date(),
-        };
-        setTransactions(prev => [newTx, ...prev]);
-        setNotifications(prev => [{
-          id: generateId(), title: 'Service Completed',
-          message: `${ticket.serviceType} for ${ticket.customerName} completed`,
-          type: 'success', read: false, createdAt: new Date(),
-        }, ...prev]);
-      }
+    if (status === 'completed' && ticket && ticket.status !== 'completed') {
+      const newTx: Transaction = {
+        id: generateId(), type: ticket.serviceType,
+        customerName: ticket.customerName, amount: ticket.amount,
+        paymentMethod: 'cash', createdAt: new Date(),
+      };
+      setTransactions(prev => [newTx, ...prev]);
+      setNotifications(prev => [{
+        id: generateId(), title: 'Service Completed',
+        message: `${ticket.serviceType} for ${ticket.customerName} completed`,
+        type: 'success', read: false, createdAt: new Date(),
+      }, ...prev]);
     }
   }, [serviceTickets]);
 
