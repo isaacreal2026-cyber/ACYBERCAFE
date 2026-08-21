@@ -29,10 +29,13 @@ export async function generateWithGemini(prompt: string, systemContext?: string)
 export async function chatWithGemini(
   messages: { role: 'user' | 'model'; parts: { text: string }[] }[]
 ): Promise<string> {
+  if (!messages || messages.length === 0) {
+    return simulateFallback('');
+  }
   const client = getClient();
   if (!client) {
     const lastUser = messages.filter(m => m.role === 'user').pop();
-    return simulateFallback(lastUser?.parts[0]?.text || '');
+    return simulateFallback(lastUser?.parts?.[0]?.text || '');
   }
   try {
     const model = client.getGenerativeModel({
@@ -42,12 +45,13 @@ export async function chatWithGemini(
     });
     const chat = model.startChat({ history: messages.slice(0, -1) });
     const lastMsg = messages[messages.length - 1];
-    const result = await chat.sendMessage(lastMsg.parts[0].text);
+    const promptText = lastMsg?.parts?.[0]?.text || '';
+    const result = await chat.sendMessage(promptText);
     return result.response.text();
   } catch (err) {
     console.error('Gemini chat error:', err);
     const lastUser = messages.filter(m => m.role === 'user').pop();
-    return simulateFallback(lastUser?.parts[0]?.text || '');
+    return simulateFallback(lastUser?.parts?.[0]?.text || '');
   }
 }
 
