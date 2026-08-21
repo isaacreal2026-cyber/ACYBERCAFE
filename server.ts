@@ -215,7 +215,7 @@ dns.setDefaultResultOrder("ipv4first");
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // Body parser
   app.use(express.json());
