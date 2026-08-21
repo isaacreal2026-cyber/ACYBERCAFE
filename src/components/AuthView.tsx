@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useAppStore } from '../store/useAppStore';
 import { Bot, Mail, Lock, Shield, Eye, EyeOff } from 'lucide-react';
 import { auth, googleProvider, signInWithPopup } from '../lib/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
