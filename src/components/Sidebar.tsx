@@ -145,8 +145,7 @@ export default function Sidebar({
           </div>
           <div className={cn(
             "flex-1 min-w-0 transition-opacity duration-300",
-            isSidebarCollapsed ? "hidden lg:hidden" : "block",
-            "lg:block"
+            isSidebarCollapsed ? "hidden lg:hidden" : "block lg:block"
           )}>
             <div className="flex items-center gap-1.5">
               <span className="text-text-primary font-bold text-base tracking-tight">Cyber<span className="text-brand-primary">Plus</span></span>
@@ -229,8 +228,7 @@ export default function Sidebar({
         >
           <Plus className="w-3.5 h-3.5 flex-shrink-0" />
           <span className={cn(
-            isSidebarCollapsed ? "hidden lg:hidden" : "block",
-            "lg:block"
+            isSidebarCollapsed ? "hidden lg:hidden" : "block lg:block"
           )}>
             New Service
           </span>
@@ -315,7 +313,7 @@ export default function Sidebar({
         {(activeCategory === 'ai-chat') && (
           <div className={cn(
             "px-2 mt-2",
-            isSidebarCollapsed ? "block lg:hidden" : "block"
+            isSidebarCollapsed ? "block lg:hidden" : "block lg:block"
           )}>
             <div className="flex items-center gap-1 px-1 py-1.5">
               <Clock className="w-2.5 h-2.5 text-text-primary/20" />
@@ -375,8 +373,7 @@ export default function Sidebar({
           </div>
           <div className={cn(
             "flex-1 min-w-0",
-            isSidebarCollapsed ? "block lg:hidden" : "block",
-            "lg:block"
+            isSidebarCollapsed ? "hidden lg:hidden" : "block lg:block"
           )}>
             <div className="text-xs text-gray-800 font-medium truncate">{user.name}</div>
             <div className="text-[10px] text-gray-600 flex items-center gap-1">
