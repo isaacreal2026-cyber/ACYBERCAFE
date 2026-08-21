@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Conversation, Message, GeneratedImage, User, ToolCategory,
   Customer, ServiceTicket, PrintJob, StaffMember, Transaction, Notification, StoredDocument,
@@ -133,11 +133,11 @@ export function useAppStore() {
     setAssets(prev => prev.filter(a => a.id !== id));
   }, []);
 
-  const activeConversation = conversations.find(c => c.id === activeConversationId);
-  const unreadNotifications = notifications.filter(n => !n.read).length;
-  const waitingTickets = serviceTickets.filter(t => t.status === 'waiting').length;
-  const activeJobs = serviceTickets.filter(t => t.status === 'processing').length;
-  const todayRevenue = transactions.reduce((sum, t) => sum + t.amount, 0);
+  const activeConversation = useMemo(() => conversations.find(c => c.id === activeConversationId), [conversations, activeConversationId]);
+  const unreadNotifications = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
+  const waitingTickets = useMemo(() => serviceTickets.filter(t => t.status === 'waiting').length, [serviceTickets]);
+  const activeJobs = useMemo(() => serviceTickets.filter(t => t.status === 'processing').length, [serviceTickets]);
+  const todayRevenue = useMemo(() => transactions.reduce((sum, t) => sum + t.amount, 0), [transactions]);
 
   const createConversation = useCallback((model: string = 'gemini-2.5-flash') => {
     const newConv: Conversation = {
