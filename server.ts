@@ -594,6 +594,7 @@ async function startServer() {
   const offlineInstances = new Map<string, number>();
 
   // In-memory cache for fast media resource resolution and streaming routing acceleration
+  const MAX_EXTRACTION_CACHE_SIZE = 500;
   const extractionCache = new Map<
     string,
     {
@@ -602,6 +603,20 @@ async function startServer() {
       expiresAt: number;
     }
   >();
+
+  function setExtractionCache(
+    key: string,
+    val: { videoUrl: string; audioUrl: string; expiresAt: number },
+  ) {
+    if (
+      extractionCache.size >= MAX_EXTRACTION_CACHE_SIZE &&
+      !extractionCache.has(key)
+    ) {
+      const oldestKey = extractionCache.keys().next().value;
+      if (oldestKey !== undefined) extractionCache.delete(oldestKey);
+    }
+    extractionCache.set(key, val);
+  }
 
   // Simple in-memory proxy pool for yt-dlp (populated via env, or default fallbacks)
   const proxyPoolStr = process.env.PROXY_POOL || "";
@@ -1348,13 +1363,13 @@ async function startServer() {
             const resolvedAudio = audioUrl || videoUrl;
 
             // Populate cache with raw urls
-            extractionCache.set(url, {
+            setExtractionCache(url, {
               videoUrl: resolvedVideo,
               audioUrl: resolvedAudio,
               expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour expiration
             });
             if (youtubeId) {
-              extractionCache.set(youtubeId, {
+              setExtractionCache(youtubeId, {
                 videoUrl: resolvedVideo,
                 audioUrl: resolvedAudio,
                 expiresAt: Date.now() + 60 * 60 * 1000,
@@ -1444,13 +1459,13 @@ async function startServer() {
             `[Unified Media Extractor] Parallel race extraction succeeded via ${fastestResult.source}`,
           );
           // Populate cache with raw urls
-          extractionCache.set(url, {
+          setExtractionCache(url, {
             videoUrl: fastestResult.videoUrl,
             audioUrl: fastestResult.audioUrl,
             expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour expiration
           });
           if (youtubeId) {
-            extractionCache.set(youtubeId, {
+            setExtractionCache(youtubeId, {
               videoUrl: fastestResult.videoUrl,
               audioUrl: fastestResult.audioUrl,
               expiresAt: Date.now() + 60 * 60 * 1000,
@@ -1501,13 +1516,13 @@ async function startServer() {
             `[Unified Media Extractor] @distube/ytdl-core extraction succeeded!`,
           );
 
-          extractionCache.set(url, {
+          setExtractionCache(url, {
             videoUrl: rawVideo,
             audioUrl: rawAudio,
             expiresAt: Date.now() + 60 * 60 * 1000,
           });
           if (youtubeId) {
-            extractionCache.set(youtubeId, {
+            setExtractionCache(youtubeId, {
               videoUrl: rawVideo,
               audioUrl: rawAudio,
               expiresAt: Date.now() + 60 * 60 * 1000,
@@ -1564,13 +1579,13 @@ async function startServer() {
               `[Unified Media Extractor] Direct local yt-dlp extraction succeeded!`,
             );
 
-            extractionCache.set(url, {
+            setExtractionCache(url, {
               videoUrl: videoUrl,
               audioUrl: audioUrl,
               expiresAt: Date.now() + 60 * 60 * 1000,
             });
             if (youtubeId) {
-              extractionCache.set(youtubeId, {
+              setExtractionCache(youtubeId, {
                 videoUrl: videoUrl,
                 audioUrl: audioUrl,
                 expiresAt: Date.now() + 60 * 60 * 1000,
@@ -1619,13 +1634,13 @@ async function startServer() {
               `[Unified Media Extractor] yt-dlp internal extraction succeeded!`,
             );
 
-            extractionCache.set(url, {
+            setExtractionCache(url, {
               videoUrl: data.url,
               audioUrl: data.url,
               expiresAt: Date.now() + 60 * 60 * 1000,
             });
             if (youtubeId) {
-              extractionCache.set(youtubeId, {
+              setExtractionCache(youtubeId, {
                 videoUrl: data.url,
                 audioUrl: data.url,
                 expiresAt: Date.now() + 60 * 60 * 1000,
@@ -2476,10 +2491,25 @@ async function startServer() {
     }
   });
 
+  const MAX_PDF_CACHE_SIZE = 100;
   const pdfExtractionCache = new Map<
     string,
     { text: string; expiresAt: number }
   >();
+
+  function setPdfExtractionCache(
+    key: string,
+    val: { text: string; expiresAt: number },
+  ) {
+    if (
+      pdfExtractionCache.size >= MAX_PDF_CACHE_SIZE &&
+      !pdfExtractionCache.has(key)
+    ) {
+      const oldestKey = pdfExtractionCache.keys().next().value;
+      if (oldestKey !== undefined) pdfExtractionCache.delete(oldestKey);
+    }
+    pdfExtractionCache.set(key, val);
+  }
   setInterval(
     () => {
       const now = Date.now();
@@ -2528,7 +2558,7 @@ async function startServer() {
       const data = await pdfParse(buffer, { max: 3 });
 
       // Save to cache
-      pdfExtractionCache.set(pdf_url, {
+      setPdfExtractionCache(pdf_url, {
         text: data.text,
         expiresAt: Date.now() + 24 * 60 * 60 * 1000,
       }); // 24 hours caching
