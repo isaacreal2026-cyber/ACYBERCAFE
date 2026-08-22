@@ -81,16 +81,31 @@ export function useAppStore() {
   ]);
   const [activeConversationId, setActiveConversationId] = useState<string>('conv_1');
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
-  const [user] = useState<User>(DEFAULT_USER);
+  const [user, setUser] = useState<User>(DEFAULT_USER);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const login = useCallback((email: string, name: string) => {
-    // In a real app, this would validate credentials
     setIsAuthenticated(true);
-    // Optionally update user info here
+    const resolvedName = name || email.split('@')[0] || 'User';
+    const initials = resolvedName
+      .split(' ')
+      .filter(Boolean)
+      .map(n => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'U';
+
+    setUser({
+      name: resolvedName,
+      email: email || 'user@example.com',
+      avatar: initials,
+      plan: 'pro',
+      credits: 450000,
+      maxCredits: 450000,
+    });
   }, []);
 
   const logout = useCallback(async () => {
@@ -100,6 +115,7 @@ export function useAppStore() {
       console.error(e);
     }
     setIsAuthenticated(false);
+    setUser(DEFAULT_USER);
   }, []);
 
   // Cyber Cafe Data
