@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged as firebaseOnAuthStateChanged } from 'firebase/auth';
 
 const firebaseConfig = {
   projectId: "thin-script-nwh20",
@@ -14,4 +14,12 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export { signInWithPopup, firebaseSignOut, onAuthStateChanged };
+export { signInWithPopup, firebaseSignOut };
+
+export const onAuthStateChanged = (authObj: any, callback: (user: any) => void) => {
+  if (typeof window !== 'undefined' && (window as any).__MOCK_AUTH__) {
+    callback({ email: 'mocked.user@cyberplus.com', displayName: 'Mock User' });
+    return () => {};
+  }
+  return firebaseOnAuthStateChanged(authObj, callback);
+};
