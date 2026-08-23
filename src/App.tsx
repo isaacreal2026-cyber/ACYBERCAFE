@@ -45,6 +45,11 @@ export default function App() {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   useEffect(() => {
+    if ((window as any).__MOCK_AUTH__) {
+      store.login('mocked.user@cyberplus.com', 'Mocked User');
+      setIsAuthChecking(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         store.login(user.email || '', user.displayName || user.email?.split('@')[0] || 'User');
