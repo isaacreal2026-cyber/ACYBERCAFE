@@ -120,7 +120,11 @@ CODE REQUIREMENTS (if needsInfo is false):
       });
 
       try {
-        const result = JSON.parse(response.text || '{}');
+        let rawText = (response.text || '{}').trim();
+        if (rawText.startsWith('```')) {
+          rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        }
+        const result = JSON.parse(rawText || '{}');
         textResponse = result.chatResponse || "I am processing your request.";
         
         if (result.needsInfo || !result.code) {
