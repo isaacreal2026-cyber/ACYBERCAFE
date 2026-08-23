@@ -1,13 +1,22 @@
-# Code Quality & Technical Debt Report
+# Code Quality & Technical Debt Audit Report
 
-This report evaluates the current codebase design, complexity, architecture, patterns, documentation, and technical debt. It recommends only **near-zero risk** improvements that align with safety requirements and have zero potential for regression.
+This report provides a comprehensive review of code quality across the codebase. It covers:
+1. **Duplicated Logic**
+2. **Complex Functions**
+3. **Large Components**
+4. **Unused Code & Artifacts**
+5. **Outdated Patterns**
+6. **Missing Documentation**
+7. **Technical Debt**
+
+All recommended improvements are evaluated to ensure **near-zero risk**, maintaining absolute stability, backwards compatibility, and zero functional regression.
 
 ---
 
 ## 1. Duplicated Logic
 
-### 1.1. Stream Redirection and Pipe Logic
-In `server.ts`, several streaming routing endpoints and public fallbacks (e.g., Cobalt, Invidious, Piped, ytdl-core fallback) contain repeated blocks of stream pipe logic. Specifically, the pattern:
+### 1.1. Stream Redirection and Pipe Logic (`server.ts`)
+In `server.ts` (lines 1923, 1955, 1986, 2015, 2046, 2080, and 2110), the streaming proxy handler contains identical stream piping logic across seven distinct fallback branches:
 ```typescript
 await pipeStreamWithRedirects(
   targetStreamUrl,
@@ -18,12 +27,12 @@ await pipeStreamWithRedirects(
   defaultContentType
 );
 ```
-occurs at lines `1923`, `1955`, `1986`, `2015`, `2046`, `2080`, and `2110`.
-- **Risk Profile:** High duplication across multiple fallback branches.
-- **Near-Zero Risk Recommendation:** Encapsulate the wrapper function so that instead of repeating the block, you pass a promise or resolver string to a unified stream router.
+- **Affected File:** `server.ts` (lines 1920–2130)
+- **Impact:** Repeated error catching and stream forwarding parameters increase maintenance overhead when stream handling logic changes.
+- **Near-Zero Risk Recommendation:** Extract a helper method `streamToClient(targetUrl: string, res: Response, rangeHeader?: string, contentType?: string)` in `server.ts` to centralize stream forwarding calls.
 
-### 1.2. Download Attachment Creation in Frontend Views
-In `src/components/SearchEngineView.tsx` and `src/components/GlobalSearch.tsx`, a pattern for triggering programmatic link downloads is duplicated:
+### 1.2. DOM Anchor Download Logic (`src/components/SearchEngineView.tsx` & `src/components/GlobalSearch.tsx`)
+In `SearchEngineView.tsx` (lines 95, 110, 135) and `GlobalSearch.tsx` (lines 76, 91, 115), programmatic file download anchor creation is repeated 6 times:
 ```typescript
 const a = document.createElement("a");
 a.href = url;
@@ -34,89 +43,131 @@ document.body.appendChild(a);
 a.click();
 a.remove();
 ```
-- **Risk Profile:** Harmless but violates DRY principles across search views.
-- **Near-Zero Risk Recommendation:** Extract a small helper function `triggerDownload(url: string, filename: string)` inside `src/utils/` to share across client views.
+- **Affected Files:** `src/components/SearchEngineView.tsx`, `src/components/GlobalSearch.tsx`
+- **Impact:** Duplicated imperative DOM logic across search components.
+- **Near-Zero Risk Recommendation:** Move this snippet to a shared utility function `triggerFileDownload(url: string, filename: string)` inside `src/utils/download.ts`.
+
+### 1.3. Ticket Status Update & Notification Dispatches (`src/store/useAppStore.ts`)
+When updating ticket statuses, adding service tickets, or creating print jobs in `useAppStore.ts`, notification object creation is duplicated with minor variations:
+```typescript
+setNotifications(prev => [{
+  id: generateId(),
+  title: '...',
+  message: '...',
+  type: 'info' | 'success',
+  read: false,
+  createdAt: new Date(),
+}, ...prev]);
+```
+- **Affected File:** `src/store/useAppStore.ts` (lines 200–240)
+- **Impact:** Notification creation structure is re-written in multiple callbacks.
+- **Near-Zero Risk Recommendation:** Add an internal helper `pushNotification(title, message, type)` inside `useAppStore.ts`.
 
 ---
 
 ## 2. Complex Functions
 
-### 2.1. Server Media Stream Route `/api/yt/stream`
-The streaming proxy route handler `/api/yt/stream` in `server.ts` is extremely complex, spanning hundreds of lines. It implements five sequential fallback attempts:
-1. Cache lookup
-2. Direct local `yt-dlp` extraction
-3. Cobalt extraction
-4. Invidious Node extraction
-5. Piped Node extraction
-6. Direct fallback to native `@distube/ytdl-core`
+### 2.1. Media Streaming Handler `/api/yt/stream` (`server.ts`)
+The streaming route handler `/api/yt/stream` in `server.ts` spans ~300 lines and orchestrates 6 fallback mechanisms:
+1. Extraction cache check
+2. Direct stream detection
+3. Local `yt-dlp` execution
+4. Cobalt proxy API lookup
+5. Invidious / Piped Node fallback
+6. `@distube/ytdl-core` stream fallback
 
-While robust, it manages socket configuration, content headers, rate limits, HTTP status codes, and exceptions in a single giant arrow function.
-- **Risk Profile:** High maintenance complexity.
-- **Near-Zero Risk Recommendation:** Separate each extraction strategy (e.g., `tryLocalYtdlp`, `tryCobalt`, `tryInvidious`, `tryPiped`) into its own typed helper function. Keep the route handler as an orchestrator.
+- **Affected File:** `server.ts` (lines ~1880–2150)
+- **Impact:** High cognitive complexity, deeply nested `try...catch` blocks, and mixed socket event listeners.
+- **Near-Zero Risk Recommendation:** Decompose each extraction fallback into isolated helper functions (`tryCachedStream`, `tryDirectStream`, `tryLocalYtdlpStream`, `tryThirdPartyStream`), leaving the route handler as a clean orchestrator pipeline.
 
-### 2.2. React State Store `useAppStore.ts`
-The custom state hook `useAppStore` in `src/store/useAppStore.ts` encapsulates state for nearly all cyber cafe features including chat, customers, ticketing, print jobs, and finance. It has over 20 functions inside a single hook.
-- **Risk Profile:** React re-renders everything registered under this single context/hook whenever any small detail changes.
-- **Near-Zero Risk Recommendation:** Divide state slices (e.g., Chat State, CRM/Customer State, Finance State) into distinct hooks, or use Zustand slice patterns to avoid bloated re-render cycles.
+### 2.2. Monolithic Application Store Hook `useAppStore()` (`src/store/useAppStore.ts`)
+The `useAppStore` hook manages state for all 24 application views, defining 20+ functions and state updates within a single functional component scope.
+- **Affected File:** `src/store/useAppStore.ts` (lines 100–290)
+- **Impact:** Any component invoking `useAppStore()` re-evaluates all state actions upon any state mutation.
+- **Near-Zero Risk Recommendation:** Annotate store selectors or decompose state into focused sub-hooks (e.g. `useTicketStore`, `useChatStore`, `useCustomerStore`) while maintaining a unified wrapper hook for backwards compatibility.
+
+### 2.3. AI Assistance Handler `chatWithGemini` (`src/lib/gemini.ts`)
+Handles client initialization, prompt formatting, chat history slicing, API call execution, and manual fallback generation.
+- **Affected File:** `src/lib/gemini.ts` (lines 27–52)
+- **Impact:** Mixed responsibilities (API orchestration vs mock fallback generation).
+- **Near-Zero Risk Recommendation:** Separate the AI API client call from the offline fallback mock router into `geminiApi.ts` and `geminiFallback.ts`.
 
 ---
 
 ## 3. Large Components
 
-### 3.1. `src/components/DocsView.tsx` (698 lines)
-- **Problem:** Handles multiple concerns: Drag and Drop file uploading, PDF generator, HTML layout parsing, AI Chat window, and Canva-like iframe configurations.
-- **Near-Zero Risk Recommendation:** Split `DocsView.tsx` into smaller presentation elements:
-  - `DocSidebar.tsx` (tool list and upload zone)
-  - `DocChatArea.tsx` (the ReactMarkdown list)
-  - `StudioBanner.tsx` (the Canva-like studio link frame)
+### 3.1. `server.ts` (2,793 lines)
+- **Problem:** Functions as a monolithic entry point combining express middleware, YouTube extractors, streaming proxies, static file serving, scrape routers, rate limiters, and uncaught exception handlers.
+- **Near-Zero Risk Recommendation:** Modularize route groups into dedicated Express routers under `src/server/` (e.g. `src/server/yt.ts`, `src/server/scrape.ts`, `src/server/git.ts`), following the existing pattern used by `src/server/agent.ts` and `src/server/pdf-ai.ts`.
 
-### 3.2. `src/components/SearchEngineView.tsx` (613 lines) and `src/components/HelpFaqView.tsx` (570 lines)
-- **Problem:** Contains large embedded SVG collections, state trees, and static content that never changes.
-- **Near-Zero Risk Recommendation:** Extract static content maps, help categories, and SVG sets into JSON mock modules or dedicated asset files inside `src/data/` or `src/components/icons/`.
+### 3.2. `src/components/DocsView.tsx` (698 lines)
+- **Problem:** Handles drag-and-drop file uploading, HTML parsing, PDF document creation, AI chat window, and design studio iframe integration.
+- **Near-Zero Risk Recommendation:** Extract sub-components: `DocsEditorToolbar.tsx`, `DocsChatSidebar.tsx`, `DocsPdfGenerator.tsx`.
+
+### 3.3. `src/components/SearchEngineView.tsx` (613 lines) & `src/components/HelpFaqView.tsx` (570 lines)
+- **Problem:** Embedded static datasets (search templates, SVG icon definitions, FAQ lists) mixed directly inside rendering functions.
+- **Near-Zero Risk Recommendation:** Move static data objects into `src/data/searchCategories.ts` and `src/data/faqContent.ts`.
+
+### 3.4. Static Artifact Files (`1786313670595-player-script.js` & `1786313670608-player-script.js`, 9,038 lines each)
+- **Problem:** Oversized static scripts present in root directory without clear references in `server.ts` or `index.html`.
+- **Near-Zero Risk Recommendation:** Audit usage and document whether these are compiled fallback artifacts or legacy scripts; move to `assets/` or `dist/` if retained.
 
 ---
 
-## 4. Unused Code / Dependencies
+## 4. Unused Code & Dependencies
 
-### 4.1. Dual YouTube packages
-- **Problem:** `package.json` specifies both `youtube-sr` and `@distube/ytdl-core` along with local yt-dlp binaries. While they are useful as backups, they represent heavy cold startup latency.
-- **Near-Zero Risk Recommendation:** Keep them but ensure they are strictly dynamically imported.
+### 4.1. Dual YouTube Libraries (`package.json`)
+- **Problem:** Both `@distube/ytdl-core` and `youtube-sr` are included in `package.json` alongside local `yt-dlp` binary execution.
+- **Near-Zero Risk Recommendation:** Maintain dynamic imports (`await import(...)`) inside request handlers to ensure zero impact on cold startup latency.
+
+### 4.2. Standalone Utility Scripts (`fix_ts.sh`, `fix_ts2.sh`, `replace-theme.mjs`)
+- **Problem:** Root directory contains single-use helper scripts with no documentation or package.json script references.
+- **Near-Zero Risk Recommendation:** Document script purposes in a `scripts/README.md` or archive unused temporary maintenance scripts.
 
 ---
 
 ## 5. Outdated Patterns
 
-### 5.1. Global mutable counter in Store
+### 5.1. Global Mutable Counter for Unique IDs (`src/store/useAppStore.ts`)
 ```typescript
 let idCounter = 0;
 export const generateId = () => `id_${++idCounter}_${Date.now()}`;
 ```
-- **Problem:** In React applications, mutable module-scope variables like `idCounter` are vulnerable to race conditions or duplicate IDs upon hydration and server/client state mismatches.
-- **Near-Zero Risk Recommendation:** Use `crypto.randomUUID()` which is standard, highly secure, and supported across all modern browsers and Node runtimes.
+- **Problem:** Uses a module-scoped mutable counter variable, which can lead to collisions or non-deterministic IDs in testing / SSR environments.
+- **Near-Zero Risk Recommendation:** Replace with `crypto.randomUUID()` (supported natively in modern browsers and Node.js 16+).
+
+### 5.2. Imperative DOM Manipulation in React Components
+- **Problem:** Components manually append and remove `<a>` elements (`document.body.appendChild(a)`) directly within click handlers.
+- **Near-Zero Risk Recommendation:** Encapsulate imperative DOM side effects inside clean helper functions or standard React refs.
 
 ---
 
 ## 6. Missing Documentation
 
-### 6.1. Undocumented Library Files
-- **Problem:** Critical files like `src/lib/gemini.ts` contain zero descriptive comments or JSDoc headers for functions interacting with generative models.
-- **Near-Zero Risk Recommendation:** Add light JSDoc annotations outlining parameter expectations, return types, and expected exceptions for:
-  - `chatWithGemini`
-  - `analyzeImage`
+### 6.1. AI Service Interface (`src/lib/gemini.ts`)
+- **Problem:** Functions (`generateWithGemini`, `chatWithGemini`, `hasGeminiKey`) lack JSDoc headers explaining parameters, expected return shapes, and fallback behavior.
+- **Near-Zero Risk Recommendation:** Add comprehensive JSDoc comments to all exported functions in `src/lib/gemini.ts`.
+
+### 6.2. App Store State Contracts (`src/store/useAppStore.ts`)
+- **Problem:** Actions like `updateTicketStatus` automatically trigger background transactions and notifications, but these side-effects are undocumented in the interface.
+- **Near-Zero Risk Recommendation:** Document state actions and side-effects using JSDoc annotations on the return type of `useAppStore`.
 
 ---
 
 ## 7. Technical Debt
 
-### 7.1. In-Memory Caches and Rate Limiting
-In `server.ts`, simple memory structures are used:
-```typescript
-const extractionCache = new Map<...>();
-const extractRateLimits = new Map<...>();
-```
-- **Problem:** This does not scale horizontally (in clustering or container environments) and grows unboundedly unless manual `setInterval` runs.
-- **Near-Zero Risk Recommendation:** Keep them for now as zero-risk, but document that any future scale-out must migrate rate-limiting to Redis or Express Rate Limit middleware.
+### 7.1. In-Memory State & Rate Limiters
+- **Problem:** `extractionCache` and `extractRateLimits` in `server.ts` use in-memory JS `Map` instances without Redis persistence or horizontal clustering support.
+- **Near-Zero Risk Recommendation:** Retain in-memory maps for current single-instance deployment, but document scale-out requirements in `SCALABILITY_REPORT.md` for future multi-instance deployments.
+
+### 7.2. Global Store Re-render Overhead
+- **Problem:** Because `useAppStore` returns a single flat object created on every render, components listening to store state re-render frequently.
+- **Near-Zero Risk Recommendation:** Memoize exported action handlers with `useCallback` (already partially done) and recommend Zustand or React Context selector patterns for future performance refactoring.
+
+### 7.3. Lack of Automated Unit Tests for Business Logic
+- **Problem:** Core business logic (ticket state transition rules, revenue calculation, rate limit enforcement) lacks unit test coverage.
+- **Near-Zero Risk Recommendation:** Add lightweight Vitest / Jest unit tests targeting `src/store/useAppStore.ts` and core server utility functions.
 
 ---
 
-*Report prepared by Jules - Operations Center Tech Lead.*
+*Report prepared by Jules - Tech Lead.*
