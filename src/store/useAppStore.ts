@@ -231,7 +231,7 @@ export function useAppStore() {
     setServiceTickets(prev => prev.map(t => t.id === id ? { ...t, status, updatedAt: new Date() } : t));
     if (status === 'completed') {
       const ticket = serviceTickets.find(t => t.id === id);
-      if (ticket) {
+      if (ticket && ticket.status !== 'completed') {
         const newTx: Transaction = {
           id: generateId(), type: ticket.serviceType,
           customerName: ticket.customerName, amount: ticket.amount,
