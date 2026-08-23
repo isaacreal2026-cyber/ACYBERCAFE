@@ -189,6 +189,15 @@ export default function AuthView({ onLogin }: { onLogin: (email: string, name: s
             Google
           </button>
 
+          <button
+            onClick={() => onLogin('demo@cyberplus.com', 'Demo User')}
+            type="button"
+            className="w-full mt-3 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary font-medium rounded-xl py-2.5 transition-all flex items-center justify-center gap-2 border border-brand-primary/20"
+          >
+            <Bot className="w-4 h-4" />
+            Continue with Demo Account
+          </button>
+
           <div className="mt-6 text-center text-sm text-gray-500">
             {isLogin ? "Don't have an account? " : "Already have an account? "}
             <button 
