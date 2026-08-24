@@ -29,10 +29,18 @@ export async function generateWithGemini(prompt: string, systemContext?: string)
 export async function chatWithGemini(
   messages: { role: 'user' | 'model'; parts: { text: string }[] }[]
 ): Promise<string> {
+  if (!messages || messages.length === 0) {
+    return 'No messages provided.';
+  }
+  const lastMsg = messages[messages.length - 1];
+  if (!lastMsg || !lastMsg.parts || !lastMsg.parts[0] || !lastMsg.parts[0].text) {
+    return 'Invalid message format.';
+  }
+
   const client = getClient();
   if (!client) {
     const lastUser = messages.filter(m => m.role === 'user').pop();
-    return simulateFallback(lastUser?.parts[0]?.text || '');
+    return simulateFallback(lastUser?.parts?.[0]?.text || '');
   }
   try {
     const model = client.getGenerativeModel({
@@ -41,13 +49,12 @@ export async function chatWithGemini(
         'You are a helpful AI assistant for a cyber cafe management platform in Kenya. You assist cyber attendants and customers with various tasks including KRA services, eCitizen, NTSA, CV writing, government applications, and general assistance.',
     });
     const chat = model.startChat({ history: messages.slice(0, -1) });
-    const lastMsg = messages[messages.length - 1];
     const result = await chat.sendMessage(lastMsg.parts[0].text);
     return result.response.text();
   } catch (err) {
     console.error('Gemini chat error:', err);
     const lastUser = messages.filter(m => m.role === 'user').pop();
-    return simulateFallback(lastUser?.parts[0]?.text || '');
+    return simulateFallback(lastUser?.parts?.[0]?.text || '');
   }
 }
 
