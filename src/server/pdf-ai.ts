@@ -50,10 +50,15 @@ router.post("/generate", async (req, res) => {
     const browser = await puppeteer.launch({
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: "domcontentloaded" });
-    const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-    await browser.close();
+    let pdfBuffer: Buffer;
+    try {
+      const page = await browser.newPage();
+      await page.setContent(htmlContent, { waitUntil: "domcontentloaded" });
+      const rawPdf = await page.pdf({ format: "A4", printBackground: true });
+      pdfBuffer = Buffer.from(rawPdf);
+    } finally {
+      await browser.close().catch(console.error);
+    }
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -120,10 +125,15 @@ router.post("/edit", upload.single("file"), async (req, res) => {
     const browser = await puppeteer.launch({
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
-    const page = await browser.newPage();
-    await page.setContent(htmlLayout, { waitUntil: "domcontentloaded" });
-    const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-    await browser.close();
+    let pdfBuffer: Buffer;
+    try {
+      const page = await browser.newPage();
+      await page.setContent(htmlLayout, { waitUntil: "domcontentloaded" });
+      const rawPdf = await page.pdf({ format: "A4", printBackground: true });
+      pdfBuffer = Buffer.from(rawPdf);
+    } finally {
+      await browser.close().catch(console.error);
+    }
 
     // Clean up uploaded file
     fs.unlinkSync(file.path);
