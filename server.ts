@@ -224,8 +224,15 @@ async function startServer() {
   app.get("/api/ia-search", async (req, res) => {
     try {
       // Capture the portion of the url after the base route to preserve arrays (like fl[]) perfectly
-      const queryPart = req.url.substring(req.url.indexOf("?"));
-      const iaUrl = `https://archive.org/advancedsearch.php${queryPart !== req.url ? queryPart : ""}`;
+      let queryPart = req.url.includes("?")
+        ? req.url.substring(req.url.indexOf("?"))
+        : "";
+      if (queryPart && !queryPart.includes("output=json")) {
+        queryPart += "&output=json";
+      } else if (!queryPart) {
+        queryPart = "?output=json";
+      }
+      const iaUrl = `https://archive.org/advancedsearch.php${queryPart}`;
 
       const accessKey = process.env.IA_ACCESS_KEY;
       const secretKey = process.env.IA_SECRET_KEY;
