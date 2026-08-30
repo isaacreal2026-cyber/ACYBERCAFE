@@ -1,13 +1,13 @@
 # Code Quality & Technical Debt Report
 
-This report evaluates the current codebase design, complexity, architecture, patterns, documentation, and technical debt. It recommends only **near-zero risk** improvements that align with safety requirements and have zero potential for regression.
+This report evaluates the current codebase design, complexity, architecture, patterns, documentation, and technical debt across all major modules. It recommends only **near-zero risk** improvements that align with safety requirements and have zero potential for regression.
 
 ---
 
 ## 1. Duplicated Logic
 
-### 1.1. Stream Redirection and Pipe Logic
-In `server.ts`, several streaming routing endpoints and public fallbacks (e.g., Cobalt, Invidious, Piped, ytdl-core fallback) contain repeated blocks of stream pipe logic. Specifically, the pattern:
+### 1.1. Stream Redirection & Pipe Fallback Handler Block
+In `server.ts`, several streaming fallback branches inside the `/api/yt/stream` route repeat near-identical streaming logic using `pipeStreamWithRedirects`:
 ```typescript
 await pipeStreamWithRedirects(
   targetStreamUrl,
@@ -18,105 +18,93 @@ await pipeStreamWithRedirects(
   defaultContentType
 );
 ```
-occurs at lines `1923`, `1955`, `1986`, `2015`, `2046`, `2080`, and `2110`.
-- **Risk Profile:** High duplication across multiple fallback branches.
-- **Near-Zero Risk Recommendation:** Encapsulate the wrapper function so that instead of repeating the block, you pass a promise or resolver string to a unified stream router.
+- **Locations:** `server.ts` lines `1938`, `1968`, `2001`, `2028`, `2059`, `2095`, and `2125`.
+- **Risk Profile:** Harmless runtime behavior, but increases maintenance overhead when adjusting default streaming headers or redirect depths.
+- **Near-Zero Risk Recommendation:** Wrap the stream execution call in a helper function `streamFallbackUrl(targetUrl: string, res: Response, range?: string)` within `server.ts` without altering the fallback order or response structures.
 
-### 1.2. Download Attachment Creation in Frontend Views
-In `src/components/SearchEngineView.tsx` and `src/components/GlobalSearch.tsx`, a pattern for triggering programmatic link downloads is duplicated:
+### 1.2. Download Anchor Element Creation in Client Components
+In `src/components/CodeView.tsx` (line 227) and `src/components/DocsView.tsx` (lines 114 and 187), programmatic link download creation is duplicated:
 ```typescript
 const a = document.createElement("a");
 a.href = url;
 a.download = filename;
-a.target = '_blank';
-a.rel = 'noopener noreferrer';
 document.body.appendChild(a);
 a.click();
 a.remove();
 ```
-- **Risk Profile:** Harmless but violates DRY principles across search views.
-- **Near-Zero Risk Recommendation:** Extract a small helper function `triggerDownload(url: string, filename: string)` inside `src/utils/` to share across client views.
+- **Risk Profile:** Purely stylistic repetition of browser DOM manipulation.
+- **Near-Zero Risk Recommendation:** Extract a shared helper function `triggerFileDownload(url: string, filename: string)` in a helper module for component reuse.
 
 ---
 
 ## 2. Complex Functions
 
-### 2.1. Server Media Stream Route `/api/yt/stream`
-The streaming proxy route handler `/api/yt/stream` in `server.ts` is extremely complex, spanning hundreds of lines. It implements five sequential fallback attempts:
-1. Cache lookup
-2. Direct local `yt-dlp` extraction
-3. Cobalt extraction
-4. Invidious Node extraction
-5. Piped Node extraction
-6. Direct fallback to native `@distube/ytdl-core`
+### 2.1. Server Media Stream Proxy Handler (`/api/yt/stream` in `server.ts`)
+The streaming handler in `server.ts` (spanning lines 1883 to 2145) manages 6 distinct extraction strategies sequentially (Cache, local `yt-dlp`, Cobalt API, Invidious Node, Piped Node, and `@distube/ytdl-core`).
+- **Risk Profile:** High cognitive complexity and long function signature.
+- **Near-Zero Risk Recommendation:** Keep existing extraction logic intact. Optionally extract individual extraction attempt blocks into non-export pure helper functions (`tryCobaltStream`, `tryInvidiousStream`, etc.) within `server.ts`.
 
-While robust, it manages socket configuration, content headers, rate limits, HTTP status codes, and exceptions in a single giant arrow function.
-- **Risk Profile:** High maintenance complexity.
-- **Near-Zero Risk Recommendation:** Separate each extraction strategy (e.g., `tryLocalYtdlp`, `tryCobalt`, `tryInvidious`, `tryPiped`) into its own typed helper function. Keep the route handler as an orchestrator.
-
-### 2.2. React State Store `useAppStore.ts`
-The custom state hook `useAppStore` in `src/store/useAppStore.ts` encapsulates state for nearly all cyber cafe features including chat, customers, ticketing, print jobs, and finance. It has over 20 functions inside a single hook.
-- **Risk Profile:** React re-renders everything registered under this single context/hook whenever any small detail changes.
-- **Near-Zero Risk Recommendation:** Divide state slices (e.g., Chat State, CRM/Customer State, Finance State) into distinct hooks, or use Zustand slice patterns to avoid bloated re-render cycles.
+### 2.2. Global React State Hook (`src/store/useAppStore.ts`)
+`src/store/useAppStore.ts` encapsulates state and action handlers for 15+ sub-domains (Chat, Printing, Tickets, Customers, Notifications, Assets, Financials).
+- **Risk Profile:** Centralized state pattern is working smoothly with memoized state getters (`unreadNotifications`, `waitingTickets`, `activeJobs`, `todayRevenue`), but contains many action definitions in a single custom hook.
+- **Near-Zero Risk Recommendation:** Maintain the single state interface for component compatibility. Document slice interfaces or group related state actions via comments to improve readability without touching runtime state dispatch.
 
 ---
 
 ## 3. Large Components
 
-### 3.1. `src/components/DocsView.tsx` (698 lines)
-- **Problem:** Handles multiple concerns: Drag and Drop file uploading, PDF generator, HTML layout parsing, AI Chat window, and Canva-like iframe configurations.
-- **Near-Zero Risk Recommendation:** Split `DocsView.tsx` into smaller presentation elements:
-  - `DocSidebar.tsx` (tool list and upload zone)
-  - `DocChatArea.tsx` (the ReactMarkdown list)
-  - `StudioBanner.tsx` (the Canva-like studio link frame)
+### 3.1. High Line-Count View Components
+The following component files exceed 500 lines of code:
+1. `src/components/DocsView.tsx` (699 lines): Manages document editing, AI prompt input, canvas previews, and file conversion features.
+2. `src/components/SearchEngineView.tsx` (614 lines): Integrates multi-provider search controls, tab switches, and embedded results rendering.
+3. `src/components/HelpFaqView.tsx` (571 lines): Contains static embedded category items, search filter inputs, and help modal displays.
+4. `src/data/writingTools.ts` (569 lines): Data definition array file containing preset writing templates.
 
-### 3.2. `src/components/SearchEngineView.tsx` (613 lines) and `src/components/HelpFaqView.tsx` (570 lines)
-- **Problem:** Contains large embedded SVG collections, state trees, and static content that never changes.
-- **Near-Zero Risk Recommendation:** Extract static content maps, help categories, and SVG sets into JSON mock modules or dedicated asset files inside `src/data/` or `src/components/icons/`.
+- **Risk Profile:** Large file size increases initial file load in IDE and development navigation time.
+- **Near-Zero Risk Recommendation:** Extract static content maps, help FAQ arrays, and template datasets into dedicated JSON or data constant files in `src/data/` without altering component props or JSX structures.
 
 ---
 
-## 4. Unused Code / Dependencies
+## 4. Unused Code & Bundled Artifacts
 
-### 4.1. Dual YouTube packages
-- **Problem:** `package.json` specifies both `youtube-sr` and `@distube/ytdl-core` along with local yt-dlp binaries. While they are useful as backups, they represent heavy cold startup latency.
-- **Near-Zero Risk Recommendation:** Keep them but ensure they are strictly dynamically imported.
+### 4.1. Large Root Script Artifacts
+The root directory contains legacy player scripts:
+- `1786313670595-player-script.js` (9,038 lines)
+- `1786313670608-player-script.js` (9,038 lines)
+- **Risk Profile:** These files are non-imported static script artifacts in the repository.
+- **Near-Zero Risk Recommendation:** Safely archive or remove unreferenced player script files if they are not required by static public hosting.
 
 ---
 
 ## 5. Outdated Patterns
 
-### 5.1. Global mutable counter in Store
+### 5.1. Global Mutable ID Counter in Store
+In `src/store/useAppStore.ts` (lines 10-11):
 ```typescript
 let idCounter = 0;
 export const generateId = () => `id_${++idCounter}_${Date.now()}`;
 ```
-- **Problem:** In React applications, mutable module-scope variables like `idCounter` are vulnerable to race conditions or duplicate IDs upon hydration and server/client state mismatches.
-- **Near-Zero Risk Recommendation:** Use `crypto.randomUUID()` which is standard, highly secure, and supported across all modern browsers and Node runtimes.
+- **Risk Profile:** Works for client-only state, but mutable module-scoped variables can produce unexpected collisions if store state is reset or standard UUIDs are expected by APIs.
+- **Near-Zero Risk Recommendation:** Upgrade `generateId()` to use `window.crypto.randomUUID()` with fallback to timestamp strings, ensuring unique and unpredictable ID generation across re-renders.
 
 ---
 
 ## 6. Missing Documentation
 
-### 6.1. Undocumented Library Files
-- **Problem:** Critical files like `src/lib/gemini.ts` contain zero descriptive comments or JSDoc headers for functions interacting with generative models.
-- **Near-Zero Risk Recommendation:** Add light JSDoc annotations outlining parameter expectations, return types, and expected exceptions for:
-  - `chatWithGemini`
-  - `analyzeImage`
+### 6.1. AI Helper Module Annotations (`src/lib/gemini.ts`)
+Functions such as `chatWithGemini` and `analyzeImage` in `src/lib/gemini.ts` handle Gemini API interactions but lack JSDoc comments describing parameters, fallback behaviors, and return schemas.
+- **Risk Profile:** Purely documentation-level omission.
+- **Near-Zero Risk Recommendation:** Add comprehensive JSDoc annotations outlining parameter types, error handling contracts, and return structures for developer clarity.
 
 ---
 
 ## 7. Technical Debt
 
-### 7.1. In-Memory Caches and Rate Limiting
-In `server.ts`, simple memory structures are used:
-```typescript
-const extractionCache = new Map<...>();
-const extractRateLimits = new Map<...>();
-```
-- **Problem:** This does not scale horizontally (in clustering or container environments) and grows unboundedly unless manual `setInterval` runs.
-- **Near-Zero Risk Recommendation:** Keep them for now as zero-risk, but document that any future scale-out must migrate rate-limiting to Redis or Express Rate Limit middleware.
+### 7.1. In-Memory Caches & Process State (`server.ts`)
+In-memory structures (`extractionCache`, `extractRateLimits`) are maintained directly in process memory in `server.ts`.
+- **Risk Profile:** Optimal for single-instance deployments, but requires external store migration (e.g., Redis) if horizontal scaling across multiple Node cluster workers is implemented in the future.
+- **Near-Zero Risk Recommendation:** Maintain in-memory maps while documenting scale-out guidelines in operational documentation.
 
 ---
 
-*Report prepared by Jules - Operations Center Tech Lead.*
+*Report prepared by Jules - Tech Lead.*
