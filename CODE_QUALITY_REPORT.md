@@ -1,13 +1,13 @@
 # Code Quality & Technical Debt Report
 
-This report evaluates the current codebase design, complexity, architecture, patterns, documentation, and technical debt. It recommends only **near-zero risk** improvements that align with safety requirements and have zero potential for regression.
+This report evaluates the current codebase design, complexity, architecture, patterns, documentation, and technical debt. It presents comprehensive findings across all 7 requested code quality categories along with **near-zero risk** improvement recommendations.
 
 ---
 
 ## 1. Duplicated Logic
 
-### 1.1. Stream Redirection and Pipe Logic
-In `server.ts`, several streaming routing endpoints and public fallbacks (e.g., Cobalt, Invidious, Piped, ytdl-core fallback) contain repeated blocks of stream pipe logic. Specifically, the pattern:
+### 1.1. Stream Redirection and Pipe Logic in Express Handlers
+In `server.ts`, multiple streaming routes and public fallback branches (e.g., Cobalt, Invidious, Piped, `@distube/ytdl-core` fallback) duplicate stream pipe invocation logic.
 ```typescript
 await pipeStreamWithRedirects(
   targetStreamUrl,
@@ -18,105 +18,121 @@ await pipeStreamWithRedirects(
   defaultContentType
 );
 ```
-occurs at lines `1923`, `1955`, `1986`, `2015`, `2046`, `2080`, and `2110`.
-- **Risk Profile:** High duplication across multiple fallback branches.
-- **Near-Zero Risk Recommendation:** Encapsulate the wrapper function so that instead of repeating the block, you pass a promise or resolver string to a unified stream router.
+- **Occurrences:** Found 9 times across streaming handlers in `server.ts`.
+- **Impact:** Maintenance overhead when modifying stream response headers, error handlers, or buffer limits.
+- **Near-Zero Risk Recommendation:** Create a dedicated helper function `dispatchStreamPipe(url, res, headers, fallbackContentType)` to encapsulate stream routing without altering network behavior.
 
-### 1.2. Download Attachment Creation in Frontend Views
-In `src/components/SearchEngineView.tsx` and `src/components/GlobalSearch.tsx`, a pattern for triggering programmatic link downloads is duplicated:
+### 1.2. Programmatic DOM Download Link Creation
+Across 5 frontend components (`src/components/SearchEngineView.tsx`, `src/components/CodeView.tsx`, `src/components/DocsView.tsx`, `src/components/GlobalSearch.tsx`, `src/components/WritingView.tsx`), the pattern for initiating browser file downloads is duplicated:
 ```typescript
 const a = document.createElement("a");
 a.href = url;
 a.download = filename;
-a.target = '_blank';
-a.rel = 'noopener noreferrer';
 document.body.appendChild(a);
 a.click();
 a.remove();
 ```
-- **Risk Profile:** Harmless but violates DRY principles across search views.
-- **Near-Zero Risk Recommendation:** Extract a small helper function `triggerDownload(url: string, filename: string)` inside `src/utils/` to share across client views.
+- **Impact:** Minor DRY violation across presentation components.
+- **Near-Zero Risk Recommendation:** Extract a shared, pure utility function `triggerFileDownload(url: string, filename: string)` into `src/utils/download.ts`.
 
 ---
 
 ## 2. Complex Functions
 
-### 2.1. Server Media Stream Route `/api/yt/stream`
-The streaming proxy route handler `/api/yt/stream` in `server.ts` is extremely complex, spanning hundreds of lines. It implements five sequential fallback attempts:
-1. Cache lookup
-2. Direct local `yt-dlp` extraction
-3. Cobalt extraction
-4. Invidious Node extraction
-5. Piped Node extraction
-6. Direct fallback to native `@distube/ytdl-core`
+### 2.1. Media Proxy Stream Route `/api/yt/stream`
+The primary streaming route in `server.ts` spans hundreds of lines in a single handler function. It handles 5 sequential fallback strategies:
+1. Local extraction cache lookup
+2. Direct local `yt-dlp` binary execution
+3. Cobalt API proxy extraction
+4. Invidious instance node extraction
+5. Piped instance node extraction
+6. Direct `@distube/ytdl-core` stream fallback
 
-While robust, it manages socket configuration, content headers, rate limits, HTTP status codes, and exceptions in a single giant arrow function.
-- **Risk Profile:** High maintenance complexity.
-- **Near-Zero Risk Recommendation:** Separate each extraction strategy (e.g., `tryLocalYtdlp`, `tryCobalt`, `tryInvidious`, `tryPiped`) into its own typed helper function. Keep the route handler as an orchestrator.
+- **Impact:** High cognitive load, difficult isolated testing, and potential edge-case bug cascading.
+- **Near-Zero Risk Recommendation:** Refactor extraction strategies into separate helper functions (e.g., `extractViaYtdlp`, `extractViaCobalt`, `extractViaInvidious`) that return standardized status results, keeping the endpoint handler as a clean orchestrator.
 
-### 2.2. React State Store `useAppStore.ts`
-The custom state hook `useAppStore` in `src/store/useAppStore.ts` encapsulates state for nearly all cyber cafe features including chat, customers, ticketing, print jobs, and finance. It has over 20 functions inside a single hook.
-- **Risk Profile:** React re-renders everything registered under this single context/hook whenever any small detail changes.
-- **Near-Zero Risk Recommendation:** Divide state slices (e.g., Chat State, CRM/Customer State, Finance State) into distinct hooks, or use Zustand slice patterns to avoid bloated re-render cycles.
-
----
-
-## 3. Large Components
-
-### 3.1. `src/components/DocsView.tsx` (698 lines)
-- **Problem:** Handles multiple concerns: Drag and Drop file uploading, PDF generator, HTML layout parsing, AI Chat window, and Canva-like iframe configurations.
-- **Near-Zero Risk Recommendation:** Split `DocsView.tsx` into smaller presentation elements:
-  - `DocSidebar.tsx` (tool list and upload zone)
-  - `DocChatArea.tsx` (the ReactMarkdown list)
-  - `StudioBanner.tsx` (the Canva-like studio link frame)
-
-### 3.2. `src/components/SearchEngineView.tsx` (613 lines) and `src/components/HelpFaqView.tsx` (570 lines)
-- **Problem:** Contains large embedded SVG collections, state trees, and static content that never changes.
-- **Near-Zero Risk Recommendation:** Extract static content maps, help categories, and SVG sets into JSON mock modules or dedicated asset files inside `src/data/` or `src/components/icons/`.
+### 2.2. Monolithic Application State Store (`src/store/useAppStore.ts`)
+The custom Zustand-like React state hook `useAppStore` encapsulates state and management logic for 8 disparate domain areas (Chat, Customers, Tickets, Print Jobs, Finance, Services, Government Assets, and Notifications) with 20+ action handlers in one hook.
+- **Impact:** Unnecessary component re-renders when unrelated state slices update.
+- **Near-Zero Risk Recommendation:** Split into domain-specific state slices using Zustand slice composition (`createChatSlice`, `createCustomerSlice`, `createTicketSlice`), preserving exact hook signatures for backwards compatibility.
 
 ---
 
-## 4. Unused Code / Dependencies
+## 3. Large Components (>300 lines)
 
-### 4.1. Dual YouTube packages
-- **Problem:** `package.json` specifies both `youtube-sr` and `@distube/ytdl-core` along with local yt-dlp binaries. While they are useful as backups, they represent heavy cold startup latency.
-- **Near-Zero Risk Recommendation:** Keep them but ensure they are strictly dynamically imported.
+The codebase contains several large frontend components and server files exceeding 300 lines of code:
+1. `server.ts`: 2,793 lines
+2. `src/components/DocsView.tsx`: 698 lines (handles PDF preview, drag-and-drop uploads, AI assistant, layout canvas)
+3. `src/components/SearchEngineView.tsx`: 613 lines (combines search controls, result renders, embedded SVGs, download triggers)
+4. `src/components/HelpFaqView.tsx`: 570 lines (contains inline static FAQ data arrays and UI rendering)
+5. `src/data/writingTools.ts`: 568 lines
+6. `src/components/GlobalSearch.tsx`: 495 lines
+7. `src/components/AudioView.tsx`: 490 lines
+8. `src/components/CodeView.tsx`: 482 lines
+9. `src/components/ImageView.tsx`: 468 lines
+10. `src/components/Sidebar.tsx`: 391 lines
+11. `src/components/VideoView.tsx`: 379 lines
+12. `src/components/CyberAgentView.tsx`: 348 lines
+13. `src/components/ChatView.tsx`: 330 lines
+
+- **Near-Zero Risk Recommendation:**
+  - Separate inline static dataset arrays (e.g. FAQ items in `HelpFaqView.tsx`) into dedicated data files under `src/data/`.
+  - Extract repetitive SVG icon groups into `src/components/icons/`.
+  - Decompose `DocsView.tsx` into sub-components (`DocUploadZone.tsx`, `DocPreviewPanel.tsx`, `DocAiAssistant.tsx`).
+
+---
+
+## 4. Unused Code & Loose Types
+
+### 4.1. Heavy Any-Type Usage (`: any`)
+There are over 100 uses of `: any` throughout the codebase, with 82 occurrences in `server.ts` and 12 in `SearchEngineView.tsx`.
+- **Impact:** Reduced TypeScript compile-time safety and loss of IDE autocompletion.
+- **Near-Zero Risk Recommendation:** Define strict TypeScript interfaces for API responses (`GeminiApiResponse`, `YtdlpOutput`, `SearchResultItem`) to replace `: any` annotations incrementally without runtime changes.
+
+### 4.2. Overlapping YouTube Dependencies
+Both `youtube-sr` and `@distube/ytdl-core` are declared in `package.json` alongside direct `yt-dlp` binary invocation.
+- **Impact:** Overhead in package bundle size and cold-start dynamic loading.
+- **Near-Zero Risk Recommendation:** Maintain dynamic `import()` calls for media libraries and consider standardizing on `yt-dlp` binary execution for server-side extractions.
 
 ---
 
 ## 5. Outdated Patterns
 
-### 5.1. Global mutable counter in Store
+### 5.1. Global Mutable Module Counters for Unique IDs
+In `src/store/useAppStore.ts` and `src/components/ImageView.tsx`, unique IDs are generated using module-level mutable counters:
 ```typescript
 let idCounter = 0;
 export const generateId = () => `id_${++idCounter}_${Date.now()}`;
 ```
-- **Problem:** In React applications, mutable module-scope variables like `idCounter` are vulnerable to race conditions or duplicate IDs upon hydration and server/client state mismatches.
-- **Near-Zero Risk Recommendation:** Use `crypto.randomUUID()` which is standard, highly secure, and supported across all modern browsers and Node runtimes.
+- **Impact:** Potential ID collision or SSR/hydration inconsistencies if state is re-initialized or parallel requests occur.
+- **Near-Zero Risk Recommendation:** Use `crypto.randomUUID()` or standard UUID generation, supported natively in modern browsers and Node environments.
 
 ---
 
 ## 6. Missing Documentation
 
-### 6.1. Undocumented Library Files
-- **Problem:** Critical files like `src/lib/gemini.ts` contain zero descriptive comments or JSDoc headers for functions interacting with generative models.
-- **Near-Zero Risk Recommendation:** Add light JSDoc annotations outlining parameter expectations, return types, and expected exceptions for:
-  - `chatWithGemini`
-  - `analyzeImage`
+### 6.1. Undocumented Core Libraries
+Key service integration modules lack function-level JSDoc documentation:
+- `src/lib/gemini.ts` (`chatWithGemini`, `analyzeImage`)
+- `src/lib/firebase.ts` (Firebase Auth initialization and helpers)
+- `src/store/useAppStore.ts` (State actions and selectors)
+
+- **Near-Zero Risk Recommendation:** Add comprehensive JSDoc annotations documenting function parameters, return shapes, and potential error conditions.
 
 ---
 
 ## 7. Technical Debt
 
-### 7.1. In-Memory Caches and Rate Limiting
-In `server.ts`, simple memory structures are used:
-```typescript
-const extractionCache = new Map<...>();
-const extractRateLimits = new Map<...>();
-```
-- **Problem:** This does not scale horizontally (in clustering or container environments) and grows unboundedly unless manual `setInterval` runs.
-- **Near-Zero Risk Recommendation:** Keep them for now as zero-risk, but document that any future scale-out must migrate rate-limiting to Redis or Express Rate Limit middleware.
+### 7.1. In-Memory Rate Limiting and Caches
+In `server.ts`, rate limiting and extraction caching rely on in-memory `Map` objects (`extractionCache`, `extractRateLimits`).
+- **Impact:** Limits horizontal scaling across multi-instance or clustered server deployments.
+- **Near-Zero Risk Recommendation:** Retain existing maps for standalone execution, but introduce an abstract cache interface to seamlessly support Redis backends when scaling horizontally.
+
+### 7.2. Placeholder API Key Middleware
+In `server.ts`, the `validateApiKey` middleware currently forwards all requests (`next()`) without checking valid API key headers.
+- **Impact:** Unauthenticated access to server endpoints if exposed publicly without reverse-proxy authentication.
+- **Near-Zero Risk Recommendation:** Enforce environment variable checks (`PROCESS.env.API_KEY`) when authentication headers are required.
 
 ---
 
-*Report prepared by Jules - Operations Center Tech Lead.*
+*Report compiled by Jules — Code Quality Review.*
