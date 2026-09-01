@@ -228,24 +228,31 @@ export function useAppStore() {
   }, [serviceTickets]);
 
   const updateTicketStatus = useCallback((id: string, status: ServiceTicket['status']) => {
-    setServiceTickets(prev => prev.map(t => t.id === id ? { ...t, status, updatedAt: new Date() } : t));
-    if (status === 'completed') {
-      const ticket = serviceTickets.find(t => t.id === id);
-      if (ticket) {
-        const newTx: Transaction = {
-          id: generateId(), type: ticket.serviceType,
-          customerName: ticket.customerName, amount: ticket.amount,
-          paymentMethod: 'cash', createdAt: new Date(),
-        };
-        setTransactions(prev => [newTx, ...prev]);
-        setNotifications(prev => [{
-          id: generateId(), title: 'Service Completed',
-          message: `${ticket.serviceType} for ${ticket.customerName} completed`,
-          type: 'success', read: false, createdAt: new Date(),
-        }, ...prev]);
+    let completedTicket: ServiceTicket | undefined;
+    setServiceTickets(prev => prev.map(t => {
+      if (t.id === id) {
+        if (status === 'completed' && t.status !== 'completed') {
+          completedTicket = t;
+        }
+        return { ...t, status, updatedAt: new Date() };
       }
+      return t;
+    }));
+    if (completedTicket) {
+      const ticket: ServiceTicket = completedTicket;
+      const newTx: Transaction = {
+        id: generateId(), type: ticket.serviceType,
+        customerName: ticket.customerName, amount: ticket.amount,
+        paymentMethod: 'cash', createdAt: new Date(),
+      };
+      setTransactions(prev => [newTx, ...prev]);
+      setNotifications(prev => [{
+        id: generateId(), title: 'Service Completed',
+        message: `${ticket.serviceType} for ${ticket.customerName} completed`,
+        type: 'success', read: false, createdAt: new Date(),
+      }, ...prev]);
     }
-  }, [serviceTickets]);
+  }, []);
 
   const addPrintJob = useCallback((job: Omit<PrintJob, 'id' | 'createdAt' | 'status'>) => {
     const newJob: PrintJob = { ...job, id: generateId(), status: 'queued', createdAt: new Date() };

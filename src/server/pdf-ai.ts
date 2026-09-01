@@ -69,9 +69,9 @@ router.post("/generate", async (req, res) => {
 
 // Edit PDF text
 router.post("/edit", upload.single("file"), async (req, res) => {
+  const file = req.file;
   try {
     const { searchText, replaceText, apiKey } = req.body;
-    const file = req.file;
 
     if (!file) {
       return res.status(400).json({ error: "PDF file is required" });
@@ -125,9 +125,6 @@ router.post("/edit", upload.single("file"), async (req, res) => {
     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
     await browser.close();
 
-    // Clean up uploaded file
-    fs.unlinkSync(file.path);
-
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
@@ -136,11 +133,15 @@ router.post("/edit", upload.single("file"), async (req, res) => {
     res.send(pdfBuffer);
   } catch (error: any) {
     console.error("Error editing PDF:", error);
-    // Try to clean up
-    if (req.file?.path && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
     res.status(500).json({ error: error.message || "Failed to edit PDF" });
+  } finally {
+    if (file?.path && fs.existsSync(file.path)) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch (e) {
+        console.error("Error deleting temp edit file:", e);
+      }
+    }
   }
 });
 
