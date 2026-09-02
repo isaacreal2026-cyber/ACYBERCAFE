@@ -45,7 +45,7 @@ export default function App() {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user: any) => {
       if (user) {
         store.login(user.email || '', user.displayName || user.email?.split('@')[0] || 'User');
       } else {

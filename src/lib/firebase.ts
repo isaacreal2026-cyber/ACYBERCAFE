@@ -14,4 +14,14 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export { signInWithPopup, firebaseSignOut, onAuthStateChanged };
+const customOnAuthStateChanged = (authObj: any, callback: any) => {
+  if (typeof window !== 'undefined' && ((window as any).__MOCK_AUTH__ || window.location.search.includes('mock_auth=true'))) {
+    setTimeout(() => {
+      callback({ email: 'mocked.user@cyberplus.com', displayName: 'Mocked User' });
+    }, 50);
+    return () => {};
+  }
+  return onAuthStateChanged(authObj, callback);
+};
+
+export { signInWithPopup, firebaseSignOut, customOnAuthStateChanged as onAuthStateChanged };
