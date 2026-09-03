@@ -81,16 +81,22 @@ export function useAppStore() {
   ]);
   const [activeConversationId, setActiveConversationId] = useState<string>('conv_1');
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
-  const [user] = useState<User>(DEFAULT_USER);
+  const [user, setUser] = useState<User>(DEFAULT_USER);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const login = useCallback((email: string, name: string) => {
-    // In a real app, this would validate credentials
     setIsAuthenticated(true);
-    // Optionally update user info here
+    if (email) {
+      setUser(prev => ({
+        ...prev,
+        email,
+        name: name || email.split('@')[0] || prev.name,
+        avatar: (name || email)[0].toUpperCase(),
+      }));
+    }
   }, []);
 
   const logout = useCallback(async () => {
@@ -231,7 +237,7 @@ export function useAppStore() {
     setServiceTickets(prev => prev.map(t => t.id === id ? { ...t, status, updatedAt: new Date() } : t));
     if (status === 'completed') {
       const ticket = serviceTickets.find(t => t.id === id);
-      if (ticket) {
+      if (ticket && ticket.status !== 'completed') {
         const newTx: Transaction = {
           id: generateId(), type: ticket.serviceType,
           customerName: ticket.customerName, amount: ticket.amount,
