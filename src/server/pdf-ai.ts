@@ -53,7 +53,7 @@ router.post("/generate", async (req, res) => {
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: "domcontentloaded" });
     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-    await browser.close();
+    await browser.close().catch(() => {});
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -123,7 +123,7 @@ router.post("/edit", upload.single("file"), async (req, res) => {
     const page = await browser.newPage();
     await page.setContent(htmlLayout, { waitUntil: "domcontentloaded" });
     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-    await browser.close();
+    await browser.close().catch(() => {});
 
     // Clean up uploaded file
     fs.unlinkSync(file.path);

@@ -114,6 +114,7 @@ function downloadFileWithRedirects(
     );
 
     request.on("error", (err) => {
+      fs.unlink(destPath, () => {});
       reject(err);
     });
   });
