@@ -9,12 +9,13 @@ import YouTube from "youtube-sr";
 import * as cheerio from "cheerio";
 import { GoogleGenAI } from "@google/genai";
 import Groq from "groq-sdk";
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import { promisify } from "util";
 import agentRouter from "./src/server/agent";
 import pdfAiRouter from "./src/server/pdf-ai";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // --- Anti-Detection / Scraping Modules (User Request Alignment) ---
 const USER_AGENTS = [
@@ -1310,10 +1311,10 @@ async function startServer() {
     extractRateLimitMiddleware,
     async (req, res) => {
       const { url } = req.body;
-      if (!url) {
+      if (!url || typeof url !== "string" || (!url.startsWith("http://") && !url.startsWith("https://"))) {
         return res
           .status(400)
-          .json({ error: "Missing 'url' parameter in request body." });
+          .json({ error: "Missing or invalid 'url' parameter in request body. Must start with http:// or https://" });
       }
 
       const youtubeId = getYouTubeID(url);
@@ -2393,8 +2394,8 @@ async function startServer() {
   // PDF Scraper API (Based on user python script & headless browsers)
   app.get("/api/scrape-exams", async (req, res) => {
     const siteUrl = req.query.site_url;
-    if (!siteUrl || typeof siteUrl !== "string") {
-      return res.status(400).json({ error: "Missing site_url" });
+    if (!siteUrl || typeof siteUrl !== "string" || (!siteUrl.startsWith("http://") && !siteUrl.startsWith("https://"))) {
+      return res.status(400).json({ error: "Invalid or missing site_url. Must start with http:// or https://" });
     }
 
     let browser = null;
@@ -2525,8 +2526,8 @@ async function startServer() {
   // PDF Extraction API
   app.post("/api/pdf-extract", async (req, res) => {
     const { pdf_url } = req.body;
-    if (!pdf_url || typeof pdf_url !== "string") {
-      return res.status(400).json({ error: "Missing pdf_url" });
+    if (!pdf_url || typeof pdf_url !== "string" || (!pdf_url.startsWith("http://") && !pdf_url.startsWith("https://"))) {
+      return res.status(400).json({ error: "Invalid or missing pdf_url. Must start with http:// or https://" });
     }
 
     // Check Cache
@@ -2591,10 +2592,7 @@ async function startServer() {
         return res.status(400).json({ error: "Git command not allowed" });
       }
 
-      let gitArgs = "";
-      if (args && Array.isArray(args)) {
-        gitArgs = args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(" ");
-      }
+      const gitArgs = Array.isArray(args) ? args.map(String) : [];
 
       // Check if git is initialized
       const isGitInitialized = fs.existsSync(path.join(process.cwd(), ".git"));
@@ -2602,7 +2600,7 @@ async function startServer() {
         return res.status(400).json({ error: "Git repository not initialized" });
       }
 
-      const { stdout, stderr } = await execAsync(`git ${command} ${gitArgs}`);
+      const { stdout, stderr } = await execFileAsync("git", [command, ...gitArgs]);
 
       return res.json({ status: "success", stdout, stderr });
     } catch (error: any) {
